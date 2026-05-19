@@ -126,9 +126,9 @@ export function TerminalWindow({
       >
         <span className={styles.titleText}>{title}</span>
         <div className={styles.controls}>
-          <button className={styles.btnMinimize} onClick={onMinimize}  title="Minimize">─</button>
+          <button className={styles.btnMinimize} onClick={e => { e.stopPropagation(); onMinimize() }}  title="Minimize">─</button>
           <button className={styles.btnExpand}   onClick={handleExpand} title={fullscreen ? 'Restore' : 'Maximise'}>{fullscreen ? '❐' : '□'}</button>
-          <button className={styles.btnClose}    onClick={onClose}      title="Close">✕</button>
+          <button className={styles.btnClose}    onClick={e => { e.stopPropagation(); onClose() }}      title="Close">✕</button>
         </div>
       </div>
 

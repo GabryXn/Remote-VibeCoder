@@ -115,15 +115,16 @@ export function TerminalPage() {
   // ── Kill session ───────────────────────────────────────────────────────────
   const handleKillSession = useCallback(async (sessionId: string) => {
     if (!confirm(`Kill terminal ${sessionId}?`)) return
+    const success = await killSession(sessionId)
+    if (!success) return
     destroyInstance(sessionId)
-    await killSession(sessionId)
-    if (sessionId === activeSessionId) {
+    if (sessionId === activeSessionIdRef.current) {
       const remaining = sessions.filter(s => s.sessionId !== sessionId)
       if (remaining.length > 0) setActiveSessionId(remaining[0].sessionId)
       else navigate('/projects', { replace: true })
     }
     fetchSessions()
-  }, [activeSessionId, sessions, killSession, fetchSessions, navigate, destroyInstance])
+  }, [sessions, killSession, fetchSessions, navigate, destroyInstance, activeSessionIdRef])
 
   // ── Open a new session ──────────────────────────────────────────────────────
   const handleOpenSession = useCallback((sessionId: string) => {
