@@ -11,3 +11,14 @@
 .connecting   { background: var(--accent-orange); animation: status-dot-pulse 1.5s infinite; }
 .disconnected { background: var(--danger); }
 .activity     { animation: activity-pulse 0.4s ease-out 3; }
+
+@keyframes status-dot-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(217, 119, 6, 0.45); }
+  70%  { box-shadow: 0 0 0 6px rgba(217, 119, 6, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(217, 119, 6, 0);    }
+}
+
+@keyframes activity-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%      { opacity: 0.5; transform: scale(1.4); }
+}

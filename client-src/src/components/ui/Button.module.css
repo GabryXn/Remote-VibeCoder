@@ -87,6 +87,11 @@
   animation: mic-pulse 1s ease-in-out infinite;
 }
 
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);   }
+}
+
 /* ── Icon slots ── */
 .iconLeft  { display: inline-flex; }
 .iconRight { display: inline-flex; }
