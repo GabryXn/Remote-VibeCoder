@@ -11,12 +11,14 @@ export function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    fetch('/api/auth/me')
+    const ctrl = new AbortController()
+    fetch('/api/auth/me', { signal: ctrl.signal })
       .then(r => r.json())
       .then((d: { authenticated: boolean }) => {
         if (d.authenticated) navigate('/projects', { replace: true })
       })
-      .catch(() => { /* not authenticated, stay on login */ })
+      .catch(() => { /* network error or abort — stay on login */ })
+    return () => ctrl.abort()
   }, [navigate])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {

@@ -37,6 +37,24 @@ cd client-src && pnpm install && pnpm run build
 
 No automated test suite — testing is manual via browser and systemd logs.
 
+## ⚠️ Deployment — NEVER rsync or copy files directly to `~/claude-mobile`
+
+The production service runs from `~/claude-mobile` (managed by systemd). Copying files directly there while the service is running **interrupts active terminal sessions**.
+
+**The only correct deploy flow is:**
+```bash
+# 1. Build the frontend (if client-src changed)
+cd client-src && pnpm run build
+
+# 2. Commit all changes
+git add -A && git commit -m "..."
+
+# 3. Push — GitHub Actions workflow deploys automatically
+git push
+```
+
+The workflow (`.github/workflows/deploy.yml`) pulls the repo on the VM, runs `npm run build`, and restarts the service gracefully. Never use `rsync`, `cp`, or `scp` to push directly to `~/claude-mobile`.
+
 ## Architecture
 
 ```

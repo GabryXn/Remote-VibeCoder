@@ -53,6 +53,12 @@ export function useRepos(): UseReposReturn {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
 
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
   // Ref to avoid stale closure in the polling timer.
   // The setInterval callback captures `repos` at mount time (empty array).
   // Reading reposRef.current always gives the latest value.
@@ -109,9 +115,10 @@ export function useRepos(): UseReposReturn {
         return
       }
 
-      const rawRepos    = reposRes.data.repos
+      const rawRepos    = reposRes.data.repos ?? []
       const rawSessions = (sessionsRes as { sessions: Session[] }).sessions ?? []
 
+      if (!mountedRef.current) return
       setSessions(rawSessions)
       setRepos(rawRepos)
 
@@ -121,7 +128,7 @@ export function useRepos(): UseReposReturn {
         loadSyncStatuses(rawRepos),
       ])
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }, [loadGitStatuses, loadSyncStatuses])
 

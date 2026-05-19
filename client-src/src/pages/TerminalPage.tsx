@@ -83,12 +83,17 @@ export function TerminalPage() {
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch('/api/auth/me')
+    const ctrl = new AbortController()
+    fetch('/api/auth/me', { signal: ctrl.signal })
       .then(r => r.json())
       .then((d: { authenticated: boolean }) => {
         if (!d.authenticated) navigate('/', { replace: true })
       })
-      .catch(() => navigate('/', { replace: true }))
+      .catch((err: Error) => {
+        // AbortError = navigated away — do nothing
+        if (err.name !== 'AbortError') navigate('/', { replace: true })
+      })
+    return () => ctrl.abort()
   }, [navigate])
 
   // ── Handle legacy ?repo= param ──────────────────────────────────────────
