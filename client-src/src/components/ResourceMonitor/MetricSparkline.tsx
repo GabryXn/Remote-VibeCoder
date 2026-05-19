@@ -1,15 +1,16 @@
 import styles from './MetricSparkline.module.css'
 
 interface MetricSparklineProps {
-  data:   number[]        // values 0.0-1.0
-  color?: string
-  width?: number          // CSS width (px or %)
-  height?: number         // px
+  data:      number[]        // values 0.0-1.0
+  color?:    string
+  width?:    number          // CSS width (px or %)
+  height?:   number          // px
+  className?: string
 }
 
-export function MetricSparkline({ data, color = '#22c55e', width = 80, height = 24 }: MetricSparklineProps) {
+export function MetricSparkline({ data, color = '#22c55e', width = 80, height = 24, className }: MetricSparklineProps) {
   if (data.length < 2) {
-    return <div className={styles.placeholder} style={{ width, height }} />
+    return <div className={[styles.placeholder, className].filter(Boolean).join(' ')} style={{ width, height }} />
   }
 
   const W = 100  // SVG viewBox units
@@ -32,7 +33,7 @@ export function MetricSparkline({ data, color = '#22c55e', width = 80, height = 
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
-      className={styles.sparkline}
+      className={[styles.sparkline, className].filter(Boolean).join(' ')}
       style={{ width, height }}
       aria-hidden
     >

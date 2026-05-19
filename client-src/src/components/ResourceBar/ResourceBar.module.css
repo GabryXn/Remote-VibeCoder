@@ -1,7 +1,7 @@
 .bar {
-  height: 28px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-subtle);
+  height: 30px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1a1a1a;
   flex-shrink: 0;
   display: flex;
   align-items: stretch;

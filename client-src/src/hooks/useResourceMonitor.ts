@@ -67,9 +67,13 @@ export interface HealthMetrics {
 }
 
 export interface HistorySample {
-  ts:  number   // Date.now()
-  cpu: number   // 0.0-1.0
-  ram: number   // 0.0-1.0
+  ts:          number   // Date.now()
+  cpu:         number   // 0.0-1.0
+  ram:         number   // 0.0-1.0
+  netRxBps:    number
+  netTxBps:    number
+  diskReadBps: number
+  diskWriteBps: number
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -126,7 +130,15 @@ export function useResourceMonitor() {
       // Append to history buffer if we have valid cpu/ram
       if (m.cpu !== null && m.ram !== null) {
         setHistory(prev => {
-          const next = [...prev, { ts: m.timestamp, cpu: m.cpu!, ram: m.ram! }]
+          const next = [...prev, {
+            ts:          m.timestamp,
+            cpu:         m.cpu!,
+            ram:         m.ram!,
+            netRxBps:    m.net?.rxBps    ?? 0,
+            netTxBps:    m.net?.txBps    ?? 0,
+            diskReadBps: m.disk?.readBps  ?? 0,
+            diskWriteBps: m.disk?.writeBps ?? 0,
+          }]
           return next.length > HISTORY_MAX_SAMPLES ? next.slice(-HISTORY_MAX_SAMPLES) : next
         })
       }
