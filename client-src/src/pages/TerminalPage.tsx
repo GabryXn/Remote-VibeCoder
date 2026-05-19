@@ -54,6 +54,15 @@ export function TerminalPage() {
   const termPageRef  = useRef<HTMLDivElement>(null)
   const textareaRef  = useRef<HTMLTextAreaElement>(null)
 
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current
+    if (el && showTextarea) {
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight}px`
+    }
+  }, [textareaValue, showTextarea])
+
   // Persist preferences
   useEffect(() => { localStorage.setItem('vibecoder_textarea', String(showTextarea)) }, [showTextarea])
   useEffect(() => {
