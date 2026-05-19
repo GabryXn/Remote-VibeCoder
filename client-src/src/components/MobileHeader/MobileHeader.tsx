@@ -4,20 +4,22 @@ import type { SettingsSection } from '@/components/ui/SettingsDropdown'
 import styles from './MobileHeader.module.css'
 
 export interface MobileHeaderProps {
-  sessionLabel:      string
-  onBack:            () => void
-  onOpenMenu:        () => void
-  settingsSections:  SettingsSection[]
-  settingsOpen:      boolean
-  onSettingsToggle:  () => void
-  onSettingsClose:   () => void
-  onToggleSidebar:   () => void
+  sessionLabel:          string
+  onBack:                () => void
+  onOpenMenu:            () => void
+  onOpenQuickCommands:   () => void
+  settingsSections:      SettingsSection[]
+  settingsOpen:          boolean
+  onSettingsToggle:      () => void
+  onSettingsClose:       () => void
+  onToggleSidebar:       () => void
 }
 
 export function MobileHeader({
   sessionLabel,
   onBack,
   onOpenMenu,
+  onOpenQuickCommands,
   settingsSections,
   settingsOpen,
   onSettingsToggle,
@@ -29,6 +31,8 @@ export function MobileHeader({
       <Button variant="secondary" size="sm" className={styles.backBtn} onClick={onBack}>←</Button>
 
       <span className={styles.title}>{sessionLabel}</span>
+
+      <Button variant="toolbar" className={styles.iconBtn} onClick={onOpenQuickCommands} title="Comandi rapidi">⚡</Button>
 
       <Button variant="toolbar" className={styles.iconBtn} onClick={onOpenMenu} title="New terminal">+</Button>
 

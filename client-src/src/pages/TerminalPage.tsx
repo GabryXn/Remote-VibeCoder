@@ -5,10 +5,11 @@ import {
   Button, StatusDot, SettingsDropdown, ResourceMonitor, MobileHeader, ResourceBar,
 } from '@/components'
 import { useResourceMonitor }  from '@/hooks/useResourceMonitor'
-import { TerminalOpenMenu }  from '@/components/TerminalOpenMenu/TerminalOpenMenu'
-import { TerminalSidebar }   from '@/components/TerminalSidebar/TerminalSidebar'
-import { TerminalToolbar }   from '@/components/TerminalToolbar/TerminalToolbar'
-import { WindowManager }     from '@/components/WindowManager/WindowManager'
+import { TerminalOpenMenu }     from '@/components/TerminalOpenMenu/TerminalOpenMenu'
+import { TerminalSidebar }      from '@/components/TerminalSidebar/TerminalSidebar'
+import { TerminalToolbar }      from '@/components/TerminalToolbar/TerminalToolbar'
+import { WindowManager }        from '@/components/WindowManager/WindowManager'
+import { QuickCommandsPanel }   from '@/components/QuickCommandsPanel/QuickCommandsPanel'
 import { useTheme }              from '@/hooks/useTheme'
 import { useMobileLayout }       from '@/hooks/useMobileLayout'
 import { useSessions }           from '@/hooks/useSessions'
@@ -37,9 +38,10 @@ export function TerminalPage() {
 
   const { sessions, fetchSessions, killSession, adoptSession } = useSessions()
 
-  const [sidebarOpen,   setSidebarOpen]   = useState(false)
-  const [openMenuOpen,  setOpenMenuOpen]  = useState(false)
-  const [settingsOpen,  setSettingsOpen]  = useState(false)
+  const [sidebarOpen,       setSidebarOpen]       = useState(false)
+  const [openMenuOpen,      setOpenMenuOpen]      = useState(false)
+  const [settingsOpen,      setSettingsOpen]      = useState(false)
+  const [quickCmdsOpen,     setQuickCmdsOpen]     = useState(false)
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() =>
     (localStorage.getItem('vibecoder_display_mode') as DisplayMode) ?? 'default'
   )
@@ -251,6 +253,7 @@ export function TerminalPage() {
             sessionLabel={activeMeta?.label ?? activeSessionId ?? 'Terminal'}
             onBack={() => navigate('/projects')}
             onOpenMenu={() => setOpenMenuOpen(true)}
+            onOpenQuickCommands={() => setQuickCmdsOpen(true)}
             settingsSections={settingsSections}
             settingsOpen={settingsOpen}
             onSettingsToggle={() => setSettingsOpen(v => !v)}
@@ -267,6 +270,8 @@ export function TerminalPage() {
           <span className={styles.title}>
             {activeMeta?.label ?? activeSessionId ?? 'Terminal'}
           </span>
+
+          <Button variant="toolbar" onClick={() => setQuickCmdsOpen(true)} title="Comandi rapidi">⚡</Button>
 
           <Button variant="toolbar" onClick={() => setOpenMenuOpen(true)}>+</Button>
 
@@ -400,6 +405,13 @@ export function TerminalPage() {
           onDismiss={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* Quick commands panel */}
+      <QuickCommandsPanel
+        open={quickCmdsOpen}
+        onClose={() => setQuickCmdsOpen(false)}
+        sendToWs={sendToWs}
+      />
 
       {/* New terminal menu */}
       <TerminalOpenMenu
