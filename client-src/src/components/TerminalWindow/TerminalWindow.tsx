@@ -107,13 +107,11 @@ export function TerminalWindow({
     setFullscreen(f => !f)
   }
 
-  if (minimized) return null
-
   return (
     <div
       ref={windowRef}
       className={[styles.window, isActive ? styles.windowActive : ''].filter(Boolean).join(' ')}
-      style={{ left: x, top: y, width, height, zIndex }}
+      style={{ left: x, top: y, width, height, zIndex, ...(minimized ? { display: 'none' } : {}) }}
       data-session={sessionId}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

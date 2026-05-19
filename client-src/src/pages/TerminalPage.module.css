@@ -400,17 +400,25 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  position: relative;
   border: 1px solid var(--border-subtle);
   box-sizing: border-box;
 }
 
-.mobileTermWrapper[data-mode="default"],
-.mobileTermWrapper[data-mode="zoom-out"] {
+/* Each session occupies the full wrapper; only the active one is visible */
+.mobileTermSlot {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.mobileTermWrapper[data-mode="default"] .mobileTermSlot,
+.mobileTermWrapper[data-mode="zoom-out"] .mobileTermSlot {
   overflow-x: auto;
   overflow-y: auto;
 }
 
-.mobileTermWrapper[data-mode="adaptive"] {
+.mobileTermWrapper[data-mode="adaptive"] .mobileTermSlot {
   overflow: hidden;
 }
 

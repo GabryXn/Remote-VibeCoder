@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import 'xterm/css/xterm.css'
 import {
@@ -154,6 +154,16 @@ export function TerminalPage() {
   const activeMeta = sessions.find((s: SessionMetadata) => s.sessionId === activeSessionId)
   const connState  = connStates[activeSessionId] ?? 'connecting'
   const activeStreamState = streamStates[activeSessionId] ?? 'ok'
+
+  // All session IDs for mobile slots — activeSessionId is always included even
+  // before the sessions list loads (URL param arrives before first fetchSessions).
+  const allMobileSessionIds = useMemo(() => {
+    const fromList = sessions.map((s: SessionMetadata) => s.sessionId)
+    if (activeSessionId && !fromList.includes(activeSessionId)) {
+      return [activeSessionId, ...fromList]
+    }
+    return fromList
+  }, [sessions, activeSessionId])
 
   const statusLabel: Record<ConnectionState, string> = {
     connecting: 'Connecting…', connected: 'Connected', disconnected: 'Disconnected',
@@ -329,15 +339,15 @@ export function TerminalPage() {
         )}
         {isMobile ? (
           <div className={styles.mobileTermWrapper} data-mode={displayMode}>
-            {activeSessionId && makeTerminalDiv(activeSessionId)}
-            {sessions
-              .filter((s: SessionMetadata) => s.sessionId !== activeSessionId)
-              .map((s: SessionMetadata) => (
-                <div key={s.sessionId} style={{ display: 'none' }}>
-                  {makeTerminalDiv(s.sessionId)}
-                </div>
-              ))
-            }
+            {allMobileSessionIds.map(sessionId => (
+              <div
+                key={sessionId}
+                className={styles.mobileTermSlot}
+                style={{ display: sessionId === activeSessionId ? 'block' : 'none' }}
+              >
+                {makeTerminalDiv(sessionId)}
+              </div>
+            ))}
           </div>
         ) : (
           <WindowManager
@@ -399,7 +409,14 @@ export function TerminalPage() {
           open={sidebarOpen}
           sessions={sessions}
           activeSessionId={activeSessionId}
-          onSwitch={(sid) => { setActiveSessionId(sid); setSidebarOpen(false) }}
+          onSwitch={(sid) => {
+            setActiveSessionId(sid)
+            setSidebarOpen(false)
+            setTimeout(() => {
+              const inst = termMapRef.current.get(sid)
+              inst?.term.focus()
+            }, 50)
+          }}
           onClose={(sid) => handleKillSession(sid)}
           onAttach={handleAttachExternal}
           onDismiss={() => setSidebarOpen(false)}

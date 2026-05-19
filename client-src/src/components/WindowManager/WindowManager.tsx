@@ -94,7 +94,7 @@ export function WindowManager({
       {/* Floating windows */}
       {windows.map(({ sessionId, windowState }) => {
         const meta = sessionMap.get(sessionId)
-        if (!meta || windowState.minimized) return null
+        if (!meta) return null
         return (
           <TerminalWindow
             key={sessionId}

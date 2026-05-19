@@ -308,6 +308,7 @@ export function useTerminalManager({ isDark, displayMode, isMobile }: UseTermina
       if (inst.ws) { inst.ws.onclose = null; try { inst.ws.close() } catch { /* noop */ } }
       try { inst.term.dispose() } catch { /* noop */ }
       termMapRef.current.delete(sessionId)
+      containerMapRef.current.delete(sessionId)
     }
   }, [])
 
