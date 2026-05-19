@@ -222,6 +222,7 @@ export function useTerminalManager({ isDark, displayMode, isMobile }: UseTermina
       reconnTimer: null, reconnDelay: RECONNECT_BASE_MS, intentional: false,
       streamState: 'ok',
       healthPollTimer: null,
+      resizeObserver: null,
     }
     termMapRef.current.set(sessionId, inst)
 
@@ -247,6 +248,7 @@ export function useTerminalManager({ isDark, displayMode, isMobile }: UseTermina
         } catch { /* noop */ }
       }, 50)
     })
+    inst.resizeObserver = ro
     const wrapper = container.parentElement
     if (wrapper) ro.observe(wrapper)
 
@@ -285,10 +287,11 @@ export function useTerminalManager({ isDark, displayMode, isMobile }: UseTermina
     return () => {
       termMapRef.current.forEach((inst) => {
         inst.intentional = true
+        inst.resizeObserver?.disconnect()
         if (inst.reconnTimer) clearTimeout(inst.reconnTimer)
         if (inst.healthPollTimer) clearTimeout(inst.healthPollTimer)
         if (inst.ws) { inst.ws.onclose = null; try { inst.ws.close() } catch { /* noop */ } }
-        inst.term.dispose()
+        try { inst.term.dispose() } catch { /* xterm may throw during dispose if already partially torn down */ }
       })
       termMapRef.current.clear()
     }
@@ -299,10 +302,11 @@ export function useTerminalManager({ isDark, displayMode, isMobile }: UseTermina
     const inst = termMapRef.current.get(sessionId)
     if (inst) {
       inst.intentional = true
+      inst.resizeObserver?.disconnect()
       if (inst.reconnTimer) clearTimeout(inst.reconnTimer)
       if (inst.healthPollTimer) clearTimeout(inst.healthPollTimer)
       if (inst.ws) { inst.ws.onclose = null; try { inst.ws.close() } catch { /* noop */ } }
-      inst.term.dispose()
+      try { inst.term.dispose() } catch { /* noop */ }
       termMapRef.current.delete(sessionId)
     }
   }, [])

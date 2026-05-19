@@ -56,6 +56,7 @@ export interface TermInstance {
   reconnTimer: ReturnType<typeof setTimeout> | null
   reconnDelay: number
   intentional: boolean
-  streamState:   StreamingState           // ← aggiunto
-  healthPollTimer: ReturnType<typeof setTimeout> | null  // ← aggiunto
+  streamState:     StreamingState
+  healthPollTimer: ReturnType<typeof setTimeout> | null
+  resizeObserver:  ResizeObserver | null
 }
