@@ -8,10 +8,11 @@ const fs      = require('fs');
 const {
   SESSION_NAME_RE, ALLOWED_SHELLS,
   shortId, runTmux, getPaneCwd,
-  parseSessionName, listActiveSessions,
+  parseSessionName, listActiveSessions, listAllTmuxSessions,
   invalidateSessionsCache,
 } = require('../lib/tmuxClient');
 const { getSessionMeta, setSessionMeta, deleteSessionMeta } = require('../lib/sessionStore');
+const { listPtsProcesses, killSystemProcess } = require('../lib/systemTerminals');
 
 const router    = express.Router();
 const REPOS_DIR = path.join(os.homedir(), 'repos');
@@ -46,6 +47,65 @@ router.get('/', async (req, res) => {
     res.json({ sessions });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/sessions/system ─────────────────────────────────────────────────
+// Returns ALL tmux sessions (any name) + ALL pts/tty processes on the server.
+// Must be defined before /:sessionId to avoid Express swallowing it.
+router.get('/system', async (req, res) => {
+  try {
+    const [allTmux, allProcs] = await Promise.all([
+      listAllTmuxSessions(),
+      listPtsProcesses(),
+    ]);
+
+    const sessions = allTmux.map(s => {
+      const isVC   = s.name.startsWith('claude-');
+      const meta   = isVC ? getSessionMeta(s.name)       : {};
+      const parsed = isVC ? (parseSessionName(s.name) || {}) : {};
+      return {
+        sessionId: s.name,
+        repo:      meta.repo    ?? parsed.repo ?? null,
+        label:     meta.label   ?? s.name,
+        mode:      meta.mode    ?? 'shell',
+        created:   meta.created ?? s.created,
+        windows:   s.windows,
+        attached:  s.attached,
+        origin:    isVC ? 'vibecoder' : 'external',
+      };
+    });
+
+    res.json({ sessions, processes: allProcs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── DELETE /api/sessions/system/tmux/:name ───────────────────────────────────
+router.delete('/system/tmux/:name', async (req, res) => {
+  const { name } = req.params;
+  if (!SESSION_NAME_RE.test(name)) return res.status(400).json({ error: 'Invalid session name' });
+  try {
+    await runTmux(['kill-session', '-t', name]);
+    deleteSessionMeta(name);
+    invalidateSessionsCache();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── DELETE /api/sessions/system/process/:pid ─────────────────────────────────
+router.delete('/system/process/:pid', async (req, res) => {
+  const pid    = parseInt(req.params.pid, 10);
+  const signal = req.query.signal === 'SIGKILL' ? 'SIGKILL' : 'SIGTERM';
+  if (!Number.isFinite(pid) || pid <= 0) return res.status(400).json({ error: 'Invalid PID' });
+  try {
+    const result = await killSystemProcess(pid, signal);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

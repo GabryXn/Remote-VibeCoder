@@ -119,3 +119,114 @@
   transition: opacity 0.15s;
 }
 .item:hover .closeBtn { opacity: 1; }
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+.tabBtn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 8px 6px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tabBtn:hover { color: var(--text); }
+.tabBtnActive {
+  color: var(--text);
+  border-bottom-color: var(--accent-orange);
+}
+
+/* ── System tab ──────────────────────────────────────────────────────────── */
+.sysSection {
+  padding: 6px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.sysSection:first-child { border-top: none; margin-top: 0; }
+
+.sysItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+}
+.sysItem:hover { background: var(--surface-hover); }
+
+.sysActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sysItem:hover .sysActions { opacity: 1; }
+
+.attachBtn {
+  background: none;
+  border: none;
+  color: var(--accent-orange);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 1px 4px;
+}
+.killBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+.killBtn:hover { color: #ef4444; }
+.killBtnForce { font-size: 12px; }
+.killBtnForce:hover { color: #dc2626; }
+
+.tagExternal {
+  background: rgba(99,102,241,0.15);
+  color: #818cf8;
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 1px 5px;
+}
+.tagVC {
+  background: rgba(245,158,11,0.15);
+  color: var(--accent-orange);
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 1px 5px;
+}
+.tagAttached {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 1px 5px;
+}
+.pidTag {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 1px 5px;
+  color: var(--text-dim);
+  font-family: monospace;
+}
+
+.sysError {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #ef4444;
+}

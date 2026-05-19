@@ -35,7 +35,7 @@ export function TerminalPage() {
   const activeSessionIdRef = useRef(activeSessionId)
   useEffect(() => { activeSessionIdRef.current = activeSessionId }, [activeSessionId])
 
-  const { sessions, fetchSessions, killSession } = useSessions()
+  const { sessions, fetchSessions, killSession, adoptSession } = useSessions()
 
   const [sidebarOpen,   setSidebarOpen]   = useState(false)
   const [openMenuOpen,  setOpenMenuOpen]  = useState(false)
@@ -130,6 +130,13 @@ export function TerminalPage() {
     setActiveSessionId(sessionId)
     fetchSessions()
   }, [fetchSessions])
+
+  // ── Attach to an external (non-VibeCoder) tmux session ────────────────────
+  const handleAttachExternal = useCallback((sessionId: string) => {
+    adoptSession(sessionId)
+    setActiveSessionId(sessionId)
+    setSidebarOpen(false)
+  }, [adoptSession])
 
   // ── Streaming settings ────────────────────────────────────────────────────
   const { streamingSettings, updateSetting } = useStreamingSettings()
@@ -383,6 +390,7 @@ export function TerminalPage() {
           activeSessionId={activeSessionId}
           onSwitch={(sid) => { setActiveSessionId(sid); setSidebarOpen(false) }}
           onClose={(sid) => handleKillSession(sid)}
+          onAttach={handleAttachExternal}
           onDismiss={() => setSidebarOpen(false)}
         />
       )}

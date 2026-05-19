@@ -109,6 +109,31 @@ async function listActiveSessions() {
   }
 }
 
+/** Returns ALL tmux sessions regardless of name prefix, with attached status. */
+async function listAllTmuxSessions() {
+  try {
+    const output = await runTmux([
+      'list-sessions', '-F',
+      '#{session_name}:#{session_windows}:#{session_created}:#{session_attached}',
+    ]);
+    return output
+      .split('\n')
+      .filter(Boolean)
+      .map(line => {
+        const parts   = line.split(':');
+        const name     = parts[0];
+        const windows  = parseInt(parts[1], 10);
+        const created  = parseInt(parts[2], 10) * 1000;
+        const attached = parts[3] === '1';
+        return { name, windows, created, attached };
+      })
+      .filter(s => s.name);
+  } catch (err) {
+    if (err.code === 1) return [];
+    throw err;
+  }
+}
+
 function invalidateSessionsCache() {
   _sessionsCache = null;
 }
@@ -128,6 +153,7 @@ module.exports = {
   getPaneCwd,
   parseSessionName,
   listActiveSessions,
+  listAllTmuxSessions,
   invalidateSessionsCache,
   pruneDeadCwdEntries,
 };

@@ -101,8 +101,25 @@ export function useSessions() {
     }
   }, [])
 
+  // Add an external (non-VibeCoder) session to local state so it can be attached
+  const adoptSession = useCallback((sessionId: string) => {
+    setSessions(prev => {
+      if (prev.some(s => s.sessionId === sessionId)) return prev
+      return [...prev, {
+        sessionId,
+        repo:    null,
+        label:   sessionId,
+        mode:    'shell' as const,
+        workdir: '',
+        created: Date.now(),
+        windows: 1,
+      }]
+    })
+  }, [])
+
   return {
     sessions, loading, error, isExecuting, setExecuting,
     fetchSessions, createSession, createFreeSession, killSession, getSessionCwd,
+    adoptSession,
   }
 }
