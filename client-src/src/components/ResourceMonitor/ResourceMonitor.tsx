@@ -236,15 +236,16 @@ function IoRow({ icon, label, value, history, color }: IoRowProps) {
 
 // ─── Section header ───────────────────────────────────────────────────────────
 
-function SecHeader({ icon, label, value, color, state, extra }: {
+function SecHeader({ icon, label, value, color, state, extra, sparkline }: {
   icon: string; label: string; value?: string; color: string
-  state?: 'ok' | 'warn' | 'critical'; extra?: React.ReactNode
+  state?: 'ok' | 'warn' | 'critical'; extra?: React.ReactNode; sparkline?: React.ReactNode
 }) {
   return (
     <div className={styles.secHeader}>
       <span className={styles.secIcon} style={{ color }}>{icon}</span>
-      <span className={styles.secLabel}>{label}</span>
+      <span className={[styles.secLabel, sparkline ? styles.secLabelFixed : ''].filter(Boolean).join(' ')}>{label}</span>
       {extra}
+      {sparkline && <div className={styles.secSparkWrap}>{sparkline}</div>}
       {value && (
         <span
           className={[styles.secValue, state && state !== 'ok' ? styles[state] : ''].filter(Boolean).join(' ')}
@@ -431,7 +432,7 @@ export function ResourceMonitor({ metrics, history = [], compact = false }: Reso
             <SecHeader
               icon="◈" label="CPU" color={cpuColor} state={cpuState}
               value={fmtPct(metrics.cpu)}
-              extra={<MetricSparkline data={cpuHist} color={cpuColor} width={120} height={22} className={styles.headerSparkline} />}
+              sparkline={<MetricSparkline data={cpuHist} color={cpuColor} width="100%" height={22} />}
             />
             <GlowBar value={metrics.cpu} color="#22c55e" state={cpuState} height={7} />
             <CoreGrid cores={metrics.cores} />
@@ -446,7 +447,7 @@ export function ResourceMonitor({ metrics, history = [], compact = false }: Reso
                   ? `${fmtMB(metrics.ramUsedMb)} / ${fmtMB(metrics.ramTotalMb)}`
                   : fmtPct(metrics.ram)
               }
-              extra={<MetricSparkline data={ramHist} color={ramColor} width={120} height={22} className={styles.headerSparkline} />}
+              sparkline={<MetricSparkline data={ramHist} color={ramColor} width="100%" height={22} />}
             />
             <GlowBar value={metrics.ram} color="#3b82f6" state={ramState} height={7} />
             {metrics.memBreakdown && <MemBar breakdown={metrics.memBreakdown} />}

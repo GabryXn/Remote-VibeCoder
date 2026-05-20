@@ -18,7 +18,7 @@ const fs = require('fs');
 
 const FAST_MS         = 1000;
 const PROC_SCAN_MS    = 2000;
-const HISTORY_SAMPLES = 60;   // 60 × 1 s = last 60 seconds
+const HISTORY_SAMPLES = 120;  // 120 × 1 s = last 2 minutes
 const TOP_N_CPU       = 10;
 const TOP_N_MEM       = 10;
 
