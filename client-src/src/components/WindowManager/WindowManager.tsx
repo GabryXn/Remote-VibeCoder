@@ -94,12 +94,11 @@ export function WindowManager({
       {/* Floating windows */}
       {windows.map(({ sessionId, windowState }) => {
         const meta = sessionMap.get(sessionId)
-        if (!meta) return null
         return (
           <TerminalWindow
             key={sessionId}
             sessionId={sessionId}
-            title={meta.label}
+            title={meta?.label ?? sessionId}
             windowState={windowState}
             isActive={sessionId === activeSessionId}
             onFocus={() => bringToFront(sessionId)}

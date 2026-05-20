@@ -174,6 +174,26 @@ export function TerminalPage() {
     return fromList
   }, [sessions, activeSessionId])
 
+  // Desktop: ensure activeSessionId is always in the sessions list passed to
+  // WindowManager, even before fetchSessions resolves. Without this, the first
+  // render after navigation shows an empty workspace (grey screen) because
+  // WindowManager only creates windows for sessions it receives.
+  const allDesktopSessions = useMemo((): SessionMetadata[] => {
+    if (!activeSessionId || sessions.some((s: SessionMetadata) => s.sessionId === activeSessionId)) {
+      return sessions
+    }
+    const placeholder: SessionMetadata = {
+      sessionId: activeSessionId,
+      repo:      activeMeta?.repo ?? null,
+      label:     activeSessionId,
+      mode:      'shell',
+      workdir:   '',
+      created:   Date.now(),
+      windows:   1,
+    }
+    return [placeholder, ...sessions]
+  }, [sessions, activeSessionId, activeMeta])
+
   const statusLabel: Record<ConnectionState, string> = {
     connecting: 'Connecting…', connected: 'Connected', disconnected: 'Disconnected',
   }
@@ -360,7 +380,7 @@ export function TerminalPage() {
           </div>
         ) : (
           <WindowManager
-            sessions={sessions}
+            sessions={allDesktopSessions}
             activeSessionId={activeSessionId}
             onActivate={(sessionId) => {
               setActiveSessionId(sessionId)
