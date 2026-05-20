@@ -9,9 +9,9 @@ export const RECONNECT_MAX_MS  = 30000
 export const RECONNECT_FACTOR  = 1.5
 
 // ─── Health polling ───────────────────────────────────────────────────────────
-export const HEALTH_POLL_MS      = 2000  // polling normale (ok state)
+export const HEALTH_POLL_MS      = 1000  // polling normale (1s) — /proc reader è low-cost
 export const HEALTH_POLL_FAST_MS = 1000  // polling veloce (warn/critical)
-export const HISTORY_MAX_SAMPLES = 60    // 60 campioni × 2s = ultimi 2 minuti
+export const HISTORY_MAX_SAMPLES = 60    // 60 campioni × 1s = ultimi 60 secondi
 
 // ─── Terminal sizing ─────────────────────────────────────────────────────────
 export const MIN_COLS          = 220

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { HealthMetrics, HistorySample } from '@/hooks/useResourceMonitor'
+import type { HealthMetrics, HistorySample, ProcessInfo } from '@/hooks/useResourceMonitor'
 import { MetricSparkline } from './MetricSparkline'
 import styles from './ResourceMonitor.module.css'
 
@@ -37,6 +37,25 @@ function fmtUptime(seconds: number): string {
 function fmtMB(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`
   return `${mb} MB`
+}
+
+function fmtBytesTotal(b: number | undefined): string {
+  if (!b) return '–'
+  if (b < 1_048_576)        return `${(b / 1024).toFixed(0)} KB`
+  if (b < 1_073_741_824)    return `${(b / 1_048_576).toFixed(1)} MB`
+  return `${(b / 1_073_741_824).toFixed(2)} GB`
+}
+
+function fmtNum(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '–'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
+// Process state code → short label
+const STATE_LABEL: Record<string, string> = {
+  R: 'run', S: 'sleep', D: 'wait', Z: 'zomb', T: 'stop', I: 'idle',
 }
 
 // ─── Compact status pill (used in ResourceBar + widget header) ─────────────────
@@ -236,6 +255,53 @@ function SecHeader({ icon, label, value, color, state, extra }: {
   )
 }
 
+// ─── Top processes table ──────────────────────────────────────────────────────
+
+function ProcessTable({ rows, sortBy }: { rows: ProcessInfo[]; sortBy: 'cpu' | 'mem' }) {
+  if (!rows || rows.length === 0) return <span className={styles.naText}>no data</span>
+  return (
+    <div className={styles.procTable}>
+      <div className={[styles.procRow, styles.procHead].join(' ')}>
+        <span className={styles.procPid}>PID</span>
+        <span className={styles.procName}>COMMAND</span>
+        <span className={styles.procState}>S</span>
+        <span className={[styles.procCpu, sortBy === 'cpu' ? styles.procColActive : ''].join(' ')}>CPU%</span>
+        <span className={[styles.procMem, sortBy === 'mem' ? styles.procColActive : ''].join(' ')}>RSS</span>
+      </div>
+      {rows.map(p => {
+        const cpuHigh = p.cpuPct > 50
+        const memHigh = p.rssMB > 512
+        return (
+          <div key={p.pid} className={styles.procRow}>
+            <span className={styles.procPid}>{p.pid}</span>
+            <span className={styles.procName} title={p.comm}>{p.comm}</span>
+            <span className={[styles.procState, p.state === 'R' ? styles.procStateRun : ''].join(' ')}>
+              {STATE_LABEL[p.state] ?? p.state}
+            </span>
+            <span className={[styles.procCpu, cpuHigh ? styles.procHot : ''].join(' ')}>
+              {p.cpuPct.toFixed(1)}
+            </span>
+            <span className={[styles.procMem, memHigh ? styles.procHot : ''].join(' ')}>
+              {p.rssMB >= 1024 ? `${(p.rssMB / 1024).toFixed(1)}G` : `${p.rssMB}M`}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Info chip (small KV pair) ────────────────────────────────────────────────
+
+function InfoChip({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className={styles.infoChip}>
+      <span className={styles.infoChipLabel}>{label}</span>
+      <span className={styles.infoChipValue} style={color ? { color } : undefined}>{value}</span>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface ResourceMonitorProps {
@@ -246,6 +312,7 @@ export interface ResourceMonitorProps {
 
 export function ResourceMonitor({ metrics, history = [], compact = false }: ResourceMonitorProps) {
   const [open, setOpen] = useState(false)
+  const [procSort, setProcSort] = useState<'cpu' | 'mem'>('cpu')
   const widgetRef = useRef<HTMLDivElement>(null)
 
   const cpuState = metricState(metrics.cpu)
@@ -425,6 +492,80 @@ export function ResourceMonitor({ metrics, history = [], compact = false }: Reso
             ) : (
               <span className={styles.naText}>not available</span>
             )}
+          </div>
+
+          {/* ── Top processes ── */}
+          {metrics.top && (
+            <div className={styles.section}>
+              <SecHeader
+                icon="⌬"
+                label="PROCESSES"
+                color="#10b981"
+                value={metrics.top.totalProcs > 0 ? `${metrics.top.totalProcs} procs · ${metrics.top.totalThreads} thr` : undefined}
+                extra={
+                  <div className={styles.procTabs}>
+                    <button
+                      className={[styles.procTab, procSort === 'cpu' ? styles.procTabActive : ''].join(' ')}
+                      onClick={() => setProcSort('cpu')}
+                      type="button"
+                    >CPU</button>
+                    <button
+                      className={[styles.procTab, procSort === 'mem' ? styles.procTabActive : ''].join(' ')}
+                      onClick={() => setProcSort('mem')}
+                      type="button"
+                    >MEM</button>
+                  </div>
+                }
+              />
+              <ProcessTable
+                rows={procSort === 'cpu' ? metrics.top.byCpu : metrics.top.byMem}
+                sortBy={procSort}
+              />
+            </div>
+          )}
+
+          {/* ── System info (FDs, sockets, disk space, totals) ── */}
+          <div className={styles.section}>
+            <SecHeader icon="◇" label="SYSTEM" color="#94a3b8" />
+            <div className={styles.infoGrid}>
+              {metrics.fds && (
+                <InfoChip
+                  label="FD"
+                  value={`${fmtNum(metrics.fds.allocated)} / ${fmtNum(metrics.fds.max)}`}
+                  color={metrics.fds.allocated / metrics.fds.max > 0.7 ? '#f59e0b' : undefined}
+                />
+              )}
+              {metrics.sockets && (
+                <>
+                  <InfoChip label="TCP" value={fmtNum(metrics.sockets.tcp)} color="#06b6d4" />
+                  <InfoChip label="UDP" value={fmtNum(metrics.sockets.udp)} color="#a78bfa" />
+                  <InfoChip label="SOCK" value={fmtNum(metrics.sockets.total)} />
+                </>
+              )}
+              {metrics.diskUsage && (
+                <InfoChip
+                  label="DISK"
+                  value={`${metrics.diskUsage.usedGB}/${metrics.diskUsage.totalGB}G (${metrics.diskUsage.usedPct}%)`}
+                  color={metrics.diskUsage.usedPct > 85 ? '#ef4444' : metrics.diskUsage.usedPct > 70 ? '#f59e0b' : '#22c55e'}
+                />
+              )}
+              {metrics.memBreakdown?.swapTotalMB && metrics.memBreakdown.swapTotalMB > 0 && (
+                <InfoChip
+                  label="SWAP"
+                  value={`${fmtMB(metrics.memBreakdown.swapUsedMB ?? 0)} / ${fmtMB(metrics.memBreakdown.swapTotalMB)}`}
+                  color={(metrics.memBreakdown.swapUsedPct ?? 0) > 50 ? '#f59e0b' : '#8b5cf6'}
+                />
+              )}
+              {metrics.net && metrics.net.rxTotal !== undefined && (
+                <InfoChip label="NET ↓Σ" value={fmtBytesTotal(metrics.net.rxTotal)} color="#06b6d4" />
+              )}
+              {metrics.net && metrics.net.txTotal !== undefined && (
+                <InfoChip label="NET ↑Σ" value={fmtBytesTotal(metrics.net.txTotal)} color="#a78bfa" />
+              )}
+              {metrics.sysUptime !== null && (
+                <InfoChip label="HOST UP" value={fmtUptime(metrics.sysUptime ?? 0)} />
+              )}
+            </div>
           </div>
 
           {/* ── GPU (optional) ── */}

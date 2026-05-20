@@ -4,9 +4,9 @@ import { HEALTH_POLL_MS, HEALTH_POLL_FAST_MS, HISTORY_MAX_SAMPLES } from '@/term
 // ─── PSI types ────────────────────────────────────────────────────────────────
 
 export interface PsiEntry {
-  avg10:  number  // % stall in last 10 s
-  avg60:  number  // % stall in last 60 s
-  avg300: number  // % stall in last 300 s
+  avg10:  number
+  avg60:  number
+  avg300: number
 }
 
 export interface PsiMetrics {
@@ -18,22 +18,27 @@ export interface PsiMetrics {
 // ─── I/O types ────────────────────────────────────────────────────────────────
 
 export interface NetMetrics {
-  rxBps: number   // bytes/s received (physical interfaces)
-  txBps: number   // bytes/s transmitted
+  rxBps:    number
+  txBps:    number
+  rxTotal?: number   // cumulative bytes since boot
+  txTotal?: number
 }
 
 export interface DiskMetrics {
-  readBps:  number   // bytes/s read
-  writeBps: number   // bytes/s written
-  ioBusy:   number   // 0.0-1.0 fraction of time disk was busy
+  readBps:  number
+  writeBps: number
+  ioBusy:   number   // 0.0-1.0
 }
 
 export interface MemBreakdown {
   totalMB:     number
-  usedMB:      number   // actually in use by processes (excl. cache/buffers)
-  cachedMB:    number   // page cache + reclaimable
-  buffersMB:   number   // kernel I/O buffers
-  availableMB: number   // truly free + reclaimable
+  usedMB:      number
+  cachedMB:    number
+  buffersMB:   number
+  availableMB: number
+  swapTotalMB?: number
+  swapUsedMB?:  number
+  swapUsedPct?: number
 }
 
 export interface LoadAvg {
@@ -42,21 +47,55 @@ export interface LoadAvg {
   load15: number
 }
 
+// ─── Extended /proc metrics ───────────────────────────────────────────────────
+
+export interface FdMetrics {
+  allocated: number
+  free:      number
+  max:       number
+}
+
+export interface SocketMetrics {
+  tcp:   number
+  udp:   number
+  total: number
+}
+
+export interface DiskUsage {
+  totalGB: number
+  usedGB:  number
+  freeGB:  number
+  usedPct: number
+}
+
+export interface ProcessInfo {
+  pid:    number
+  comm:   string
+  state:  string  // R, S, D, Z, T, I
+  cpuPct: number
+  rssMB:  number
+}
+
+export interface TopProcs {
+  byCpu:        ProcessInfo[]
+  byMem:        ProcessInfo[]
+  totalProcs:   number
+  totalThreads: number
+}
+
 // ─── Main metrics type ────────────────────────────────────────────────────────
 
 export interface HealthMetrics {
-  // Core
   status:          'ok' | 'warn' | 'critical'
-  cpu:             number | null   // 0.0-1.0 aggregate
-  ram:             number | null   // 0.0-1.0
+  cpu:             number | null
+  ram:             number | null
   ramUsedMb:       number | null
   ramTotalMb:      number | null
-  gpu:             number | null   // 0.0-1.0 or null
-  uptime:          number          // seconds
+  gpu:             number | null
+  uptime:          number
   streamingPaused: boolean
   timestamp:       number
-  // Granular
-  cores:           number[] | null   // per-core CPU 0.0-1.0
+  cores:           number[] | null
   net:             NetMetrics | null
   disk:            DiskMetrics | null
   psi:             PsiMetrics | null
@@ -64,15 +103,21 @@ export interface HealthMetrics {
   load:            LoadAvg | null
   swapUsedPercent: number | null
   activePtys:      number | null
+  // Extended
+  fds:             FdMetrics | null
+  sockets:         SocketMetrics | null
+  sysUptime:       number | null
+  diskUsage:       DiskUsage | null
+  top:             TopProcs | null
 }
 
 export interface HistorySample {
-  ts:          number   // Date.now()
-  cpu:         number   // 0.0-1.0
-  ram:         number   // 0.0-1.0
-  netRxBps:    number
-  netTxBps:    number
-  diskReadBps: number
+  ts:           number
+  cpu:          number
+  ram:          number
+  netRxBps:     number
+  netTxBps:     number
+  diskReadBps:  number
   diskWriteBps: number
 }
 
@@ -83,6 +128,7 @@ const DEFAULT_METRICS: HealthMetrics = {
   gpu: null, uptime: 0, streamingPaused: false, timestamp: 0,
   cores: null, net: null, disk: null, psi: null,
   memBreakdown: null, load: null, swapUsedPercent: null, activePtys: null,
+  fds: null, sockets: null, sysUptime: null, diskUsage: null, top: null,
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -94,6 +140,7 @@ export function useResourceMonitor() {
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef  = useRef(true)
   const statusRef   = useRef<string>('ok')
+  const seededRef   = useRef(false)
 
   const fetchMetrics = useCallback(async () => {
     try {
@@ -123,21 +170,25 @@ export function useResourceMonitor() {
         load:            data.load         ?? null,
         swapUsedPercent: data.swapUsedPercent ?? null,
         activePtys:      data.activePtys   ?? null,
+        fds:             data.fds          ?? null,
+        sockets:         data.sockets      ?? null,
+        sysUptime:       data.sysUptime    ?? null,
+        diskUsage:       data.diskUsage    ?? null,
+        top:             data.top          ?? null,
       }
 
       setMetrics(m)
 
-      // Append to history buffer if we have valid cpu/ram
       if (m.cpu !== null && m.ram !== null) {
         setHistory(prev => {
           const next = [...prev, {
-            ts:          m.timestamp,
-            cpu:         m.cpu!,
-            ram:         m.ram!,
-            netRxBps:    m.net?.rxBps    ?? 0,
-            netTxBps:    m.net?.txBps    ?? 0,
-            diskReadBps: m.disk?.readBps  ?? 0,
-            diskWriteBps: m.disk?.writeBps ?? 0,
+            ts:           m.timestamp,
+            cpu:          m.cpu!,
+            ram:          m.ram!,
+            netRxBps:     m.net?.rxBps      ?? 0,
+            netTxBps:     m.net?.txBps      ?? 0,
+            diskReadBps:  m.disk?.readBps   ?? 0,
+            diskWriteBps: m.disk?.writeBps  ?? 0,
           }]
           return next.length > HISTORY_MAX_SAMPLES ? next.slice(-HISTORY_MAX_SAMPLES) : next
         })
@@ -145,9 +196,23 @@ export function useResourceMonitor() {
     } catch { /* ignore */ }
   }, [])
 
+  const seedHistory = useCallback(async () => {
+    if (seededRef.current) return
+    seededRef.current = true
+    try {
+      const res = await fetch('/api/metrics/history')
+      if (!res.ok) return
+      const data = await res.json()
+      if (!mountedRef.current || !Array.isArray(data.history)) return
+      setHistory(prev => prev.length === 0 ? data.history.slice(-HISTORY_MAX_SAMPLES) : prev)
+    } catch { /* ignore */ }
+  }, [])
+
   useEffect(() => {
     mountedRef.current = true
     let cancelled = false
+
+    seedHistory()
 
     async function scheduleNext() {
       await fetchMetrics()
@@ -163,7 +228,7 @@ export function useResourceMonitor() {
       mountedRef.current = false
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [fetchMetrics])
+  }, [fetchMetrics, seedHistory])
 
   return { metrics, history }
 }

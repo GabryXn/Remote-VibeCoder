@@ -20,6 +20,7 @@ const aiRoutes       = require('./routes/ai');
 const { handlePtyUpgrade } = require('./pty');
 const governor       = require('./resource-governor');
 const { getGpuUsage } = require('./lib/gpuMonitor');
+const systemMetrics   = require('./lib/systemMetrics');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,12 @@ app.get('/api/health', async (_req, res) => {
     load:            govStats?.load     ?? null,  // { load1, load5, load15 }
     swapUsedPercent: govStats?.swap?.usedPercent ?? null,
     activePtys:      govStats?.totalPtyConnections ?? null,
+    // Extended /proc metrics
+    fds:             sysM?.fds          ?? null,  // { allocated, free, max }
+    sockets:         sysM?.sockets      ?? null,  // { tcp, udp, total }
+    sysUptime:       sysM?.sysUptime    ?? null,  // host uptime in seconds
+    diskUsage:       sysM?.diskUsage    ?? null,  // { totalGB, usedGB, freeGB, usedPct }
+    top:             sysM?.top          ?? null,  // { byCpu, byMem, totalProcs, totalThreads }
     // Legacy fields
     ok: true,
     memory: {
@@ -206,6 +213,11 @@ const STREAMING_SETTINGS_DEFAULTS = {
   streamingKillEnabled:          true,
 };
 const STREAMING_SETTINGS_KEYS = Object.keys(STREAMING_SETTINGS_DEFAULTS);
+
+// Server-side metrics history (ring buffer fed by systemMetrics fast tick)
+app.get('/api/metrics/history', (_req, res) => {
+  res.json({ history: systemMetrics.history(), timestamp: Date.now() });
+});
 
 app.get('/api/settings/streaming', (req, res) => {
   const cfg = req.appConfig;
