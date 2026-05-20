@@ -3,7 +3,7 @@ import styles from './MetricSparkline.module.css'
 interface MetricSparklineProps {
   data:      number[]        // values 0.0-1.0
   color?:    string
-  width?:    number          // CSS width (px or %)
+  width?:    number | string // CSS width (px or %)
   height?:   number          // px
   className?: string
 }

@@ -1,6 +1,7 @@
 .sparkline {
   display: block;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .placeholder {

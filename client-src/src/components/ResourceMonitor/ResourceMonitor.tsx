@@ -224,7 +224,9 @@ function IoRow({ icon, label, value, history, color }: IoRowProps) {
     <div className={styles.ioRow}>
       <span className={styles.ioIcon} style={{ color }}>{icon}</span>
       <span className={styles.ioLabel}>{label}</span>
-      <MetricSparkline data={history} color={color} width={72} height={22} />
+      <div className={styles.ioSparkWrap}>
+        <MetricSparkline data={history} color={color} width="100%" height={22} />
+      </div>
       <span className={styles.ioValue} style={{ color: value && value > 0 ? color : undefined }}>
         {fmtBytes(value)}
       </span>
@@ -429,7 +431,7 @@ export function ResourceMonitor({ metrics, history = [], compact = false }: Reso
             <SecHeader
               icon="◈" label="CPU" color={cpuColor} state={cpuState}
               value={fmtPct(metrics.cpu)}
-              extra={<MetricSparkline data={cpuHist} color={cpuColor} width={80} height={22} className={styles.headerSparkline} />}
+              extra={<MetricSparkline data={cpuHist} color={cpuColor} width={120} height={22} className={styles.headerSparkline} />}
             />
             <GlowBar value={metrics.cpu} color="#22c55e" state={cpuState} height={7} />
             <CoreGrid cores={metrics.cores} />
@@ -444,7 +446,7 @@ export function ResourceMonitor({ metrics, history = [], compact = false }: Reso
                   ? `${fmtMB(metrics.ramUsedMb)} / ${fmtMB(metrics.ramTotalMb)}`
                   : fmtPct(metrics.ram)
               }
-              extra={<MetricSparkline data={ramHist} color={ramColor} width={80} height={22} className={styles.headerSparkline} />}
+              extra={<MetricSparkline data={ramHist} color={ramColor} width={120} height={22} className={styles.headerSparkline} />}
             />
             <GlowBar value={metrics.ram} color="#3b82f6" state={ramState} height={7} />
             {metrics.memBreakdown && <MemBar breakdown={metrics.memBreakdown} />}

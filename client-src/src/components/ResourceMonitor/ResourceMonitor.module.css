@@ -496,12 +496,18 @@
   min-width: 32px;
 }
 
+.ioSparkWrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 .ioValue {
   font-family: var(--font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: #666;
-  margin-left: auto;
   min-width: 80px;
   text-align: right;
   transition: color 0.3s ease;
