@@ -18,7 +18,7 @@ router.get('/settings', (req, res) => {
   const cfg = config.get();
   res.json({
     hasKey:      !!cfg.geminiApiKey,
-    geminiModel: cfg.geminiModel || 'gemini-2.0-flash-lite',
+    geminiModel: cfg.geminiModel || 'gemini-3.5-flash',
   });
 });
 
@@ -65,7 +65,7 @@ router.post('/generate-commit', async (req, res) => {
 
   const cfg    = config.get();
   const apiKey = cfg.geminiApiKey;
-  const model  = cfg.geminiModel || 'gemini-2.0-flash-lite';
+  const model  = cfg.geminiModel || 'gemini-3.5-flash';
 
   if (!apiKey) {
     return res.status(400).json({ error: 'Gemini API key not configured. Add it in AI Settings.' });

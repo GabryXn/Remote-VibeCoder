@@ -63,31 +63,48 @@ async function getRepoDiff(repoPath) {
  * @param {string} [model]   Gemini model ID
  * @returns {Promise<{ title: string, body: string }>}
  */
-async function generateCommitMessage(diffText, apiKey, model = 'gemini-2.0-flash-lite') {
+async function generateCommitMessage(diffText, apiKey, model = 'gemini-3.5-flash') {
   if (!apiKey) throw new Error('Gemini API key not configured');
   if (!diffText) return { title: 'Update files', body: 'No differences found.' };
 
-  const prompt = `You are an expert developer. I will provide you with a git diff. Your job is to write a clean, conventional commit message for these changes.
-The output MUST be a valid JSON object with EXACTLY two keys:
-- "title": a short, imperative commit title (e.g., "feat: add user login API", "fix: resolve crash on startup"). Max 60 characters.
-- "body": a detailed description of what changed and why, using bullet points if necessary.
+  const systemInstruction = `You are an expert developer. Your task is to write a clean, conventional commit message based on a git diff.
+The output MUST be a valid JSON object with:
+- "title": short, imperative commit title (max 60 chars).
+- "body": detailed description of changes and why.
 
 Requirements:
-- The language MUST be English.
-- Do NOT wrap the JSON in Markdown formatting like \`\`\`json ... \`\`\`. Just return the raw JSON object string.
-- Use conventional commits prefix (feat, fix, chore, style, refactor, docs, build, ci, etc).
-
-Git Diff:
-${diffText}`;
+- Language: English.
+- Use conventional commits (feat, fix, chore, style, refactor, docs, build, ci).
+- No markdown formatting in the response.`;
 
   const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Api-Revision': '2026-05-20'
+    },
     body:    JSON.stringify({
-      contents:         [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2 },
+      system_instruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ parts: [{ text: `Git Diff:\n${diffText}` }] }],
+      generationConfig: { 
+        thinkingConfig: {
+          thinkingLevel: 'LOW'
+        },
+        response_format: {
+          type: 'text',
+          response_mime_type: 'application/json',
+          response_schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              body: { type: 'string' }
+            },
+            required: ['title', 'body']
+          }
+        }
+      },
     }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -99,13 +116,7 @@ ${diffText}`;
   }
 
   const data = await response.json();
-  let text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-
-  // Strip markdown code fences if the model added them anyway
-  if (text.startsWith('```json')) text = text.slice(7);
-  if (text.startsWith('```'))     text = text.slice(3);
-  if (text.endsWith('```'))       text = text.slice(0, -3);
-  text = text.trim();
+  const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
 
   try {
     const parsed = JSON.parse(text);

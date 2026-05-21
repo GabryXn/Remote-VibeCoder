@@ -61,7 +61,7 @@ export function ProjectsPage() {
   // ── AI Settings ──────────────────────────────────────────────────────────
   const [aiSettingsOpen,  setAiSettingsOpen]  = useState(false)
   const [geminiKeyInput,  setGeminiKeyInput]  = useState('')
-  const [geminiModelInput,setGeminiModelInput]= useState('gemini-2.0-flash-lite')
+  const [geminiModelInput,setGeminiModelInput]= useState('gemini-3.5-flash')
   const [aiHasKey,        setAiHasKey]        = useState(false)
   const [aiSettingsSaving,setAiSettingsSaving]= useState(false)
 
@@ -345,10 +345,11 @@ export function ProjectsPage() {
               onChange={e => setGeminiModelInput(e.target.value)}
               style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)', borderRadius: 5, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 13, padding: '8px 10px', outline: 'none', width: '100%' }}
             >
-              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (fast, cheap)</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-              <option value="gemini-2.5-flash-preview-05-20">gemini-2.5-flash-preview</option>
-              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <option value="gemini-3.5-flash">gemini-3.5-flash (fastest, optimized)</option>
+              <option value="gemini-3.1-pro">gemini-3.1-pro (high reasoning)</option>
+              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (cost-efficient)</option>
+              <option value="gemini-2.5-flash">gemini-2.5-flash (stable)</option>
+              <option value="gemini-2.0-flash">gemini-2.0-flash (legacy)</option>
             </select>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5 }}>
