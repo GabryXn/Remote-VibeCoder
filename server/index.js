@@ -124,7 +124,9 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api', (req, res, next) => {
   const pub = req.path === '/auth/login'
     || req.path === '/auth/logout'
-    || req.path === '/health';
+    || req.path === '/health'
+    || req.path === '/system/snapshot'
+    || req.path === '/system/history';
   if (pub) return next();
   if (!req.session.authenticated) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -144,6 +146,25 @@ app.use('/api/auth',     authRoutes);
 app.use('/api/repos',    reposRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/ai',       aiRoutes);
+
+// ─── /metrics/* — proxy to nexus-metrics standalone service ──────────────────
+const NEXUS_METRICS_ORIGIN = 'http://127.0.0.1:3001';
+
+async function _proxyToMetrics(req, res, targetPath) {
+  try {
+    const headers = { 'Accept': 'application/json' };
+    if (req.headers['x-api-key']) headers['X-API-Key'] = req.headers['x-api-key'];
+    const upstream = await fetch(`${NEXUS_METRICS_ORIGIN}${targetPath}`, { headers });
+    const body = await upstream.json();
+    res.status(upstream.status).json(body);
+  } catch (err) {
+    res.status(502).json({ error: 'nexus-metrics unavailable', detail: err.message });
+  }
+}
+
+app.get('/metrics/health',   (_req, res) => _proxyToMetrics(_req, res, '/health'));
+app.get('/metrics/snapshot', (req,  res) => _proxyToMetrics(req,  res, '/snapshot'));
+app.get('/metrics/history',  (req,  res) => _proxyToMetrics(req,  res, '/history'));
 
 // Public health check — extended with resource governor stats
 app.get('/api/health', async (_req, res) => {
@@ -216,6 +237,53 @@ const STREAMING_SETTINGS_KEYS = Object.keys(STREAMING_SETTINGS_DEFAULTS);
 
 // Server-side metrics history (ring buffer fed by systemMetrics fast tick)
 app.get('/api/metrics/history', (_req, res) => {
+  res.json({ history: systemMetrics.history(), timestamp: Date.now() });
+});
+
+// ─── Public system snapshot (used by Ascend mobile + Remote VibeCoder) ───────
+//
+// Combines governor stats + systemMetrics latest() into a single
+// structured response. No auth required — same trust level as /api/health.
+// Response is designed for mobile consumption: flat, typed, no nested legacy fields.
+app.get('/api/system/snapshot', async (_req, res) => {
+  const govStats = governor.stats();
+  const sysM     = govStats?.sysMetrics ?? null;
+  const gpu      = await getGpuUsage();
+
+  res.json({
+    timestamp:    Date.now(),
+    status:       govStats?.pressure ?? 'unknown',
+    // — CPU —
+    cpu:          govStats?.cpu            ?? null,  // 0.0–1.0 aggregate
+    cores:        sysM?.cores             ?? null,  // number[] per-core 0.0–1.0
+    load:         govStats?.load          ?? null,  // { load1, load5, load15 }
+    // — Memory —
+    ram:          govStats ? govStats.memory.usedPercent / 100 : null,
+    memBreakdown: sysM?.memBreakdown      ?? null,
+    swapUsedPct:  govStats?.swap?.usedPercent ?? null,
+    // — Disk —
+    disk:         sysM?.disk             ?? null,   // { readBps, writeBps, ioBusy }
+    diskUsage:    sysM?.diskUsage        ?? null,   // { totalGB, usedGB, freeGB, usedPct }
+    // — Network —
+    net:          sysM?.net              ?? null,   // { rxBps, txBps, rxTotal, txTotal }
+    // — Pressure —
+    psi:          sysM?.psi              ?? null,   // PSI stall %
+    // — System —
+    sysUptime:    sysM?.sysUptime        ?? null,   // host uptime seconds
+    fds:          sysM?.fds              ?? null,   // { allocated, free, max }
+    sockets:      sysM?.sockets          ?? null,   // { tcp, udp, total }
+    // — Processes —
+    top:          sysM?.top              ?? null,   // { byCpu, byMem, totalProcs, totalThreads }
+    // — Optional —
+    gpu:          gpu                             ?? null,
+    wsConnections: wss ? wss.clients.size : 0,
+    activePtys:   govStats?.totalPtyConnections ?? 0,
+    node:         process.version,
+  });
+});
+
+// Public history endpoint (same ring buffer, no auth)
+app.get('/api/system/history', (_req, res) => {
   res.json({ history: systemMetrics.history(), timestamp: Date.now() });
 });
 
