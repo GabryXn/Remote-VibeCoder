@@ -64,8 +64,8 @@ router.post('/generate-commit', async (req, res) => {
   if (!pathCheck.ok) return res.status(400).json({ error: pathCheck.error });
 
   const cfg    = config.get();
-  const apiKey = cfg.geminiApiKey;
-  const model  = cfg.geminiModel || 'gemini-3.5-flash';
+  const apiKey = cfg.geminiApiKey || process.env.GEMINI_API_KEY;
+  const model  = cfg.geminiModel  || process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
   if (!apiKey) {
     return res.status(400).json({ error: 'Gemini API key not configured. Add it in AI Settings.' });

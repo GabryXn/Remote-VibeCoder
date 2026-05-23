@@ -317,8 +317,8 @@ router.post('/:name/push', async (req, res) => {
 router.post('/sync-all', async (req, res) => {
   const cfg          = config.get();
   const token        = cfg.githubPat || process.env.GITHUB_PAT;
-  const geminiApiKey = cfg.geminiApiKey;
-  const geminiModel  = cfg.geminiModel || 'gemini-3.5-flash';
+  const geminiApiKey = cfg.geminiApiKey || process.env.GEMINI_API_KEY;
+  const geminiModel  = cfg.geminiModel  || process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
   ensureReposDir(REPOS_DIR);
 

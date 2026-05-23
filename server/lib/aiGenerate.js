@@ -63,7 +63,7 @@ async function getRepoDiff(repoPath) {
  * @param {string} [model]   Gemini model ID
  * @returns {Promise<{ title: string, body: string }>}
  */
-async function generateCommitMessage(diffText, apiKey, model = 'gemini-3.5-flash') {
+async function generateCommitMessage(diffText, apiKey, model = 'gemini-1.5-flash') {
   if (!apiKey) throw new Error('Gemini API key not configured');
   if (!diffText) return { title: 'Update files', body: 'No differences found.' };
 
@@ -82,27 +82,20 @@ Requirements:
   const response = await fetch(url, {
     method:  'POST',
     headers: { 
-      'Content-Type': 'application/json',
-      'Api-Revision': '2026-05-20'
+      'Content-Type': 'application/json'
     },
     body:    JSON.stringify({
       system_instruction: { parts: [{ text: systemInstruction }] },
       contents: [{ parts: [{ text: `Git Diff:\n${diffText}` }] }],
-      generationConfig: { 
-        thinkingConfig: {
-          thinkingLevel: 'LOW'
-        },
-        response_format: {
-          type: 'text',
-          response_mime_type: 'application/json',
-          response_schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              body: { type: 'string' }
-            },
-            required: ['title', 'body']
-          }
+      generation_config: { 
+        response_mime_type: 'application/json',
+        response_schema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            body: { type: 'string' }
+          },
+          required: ['title', 'body']
         }
       },
     }),
