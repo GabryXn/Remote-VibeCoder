@@ -5,6 +5,7 @@ import {
   Button, StatusDot, SettingsDropdown, ResourceMonitor, MobileHeader, ResourceBar,
 } from '@/components'
 import { ToastContainer } from '@/components/Toast/Toast'
+import { FileDropZone }   from '@/components/FileDropZone/FileDropZone'
 import { useToast } from '@/hooks/useToast'
 import { useResourceMonitor }  from '@/hooks/useResourceMonitor'
 import { TerminalOpenMenu }     from '@/components/TerminalOpenMenu/TerminalOpenMenu'
@@ -44,6 +45,7 @@ export function TerminalPage() {
   const [openMenuOpen,      setOpenMenuOpen]      = useState(false)
   const [settingsOpen,      setSettingsOpen]      = useState(false)
   const [quickCmdsOpen,     setQuickCmdsOpen]     = useState(false)
+  const [showDropZone,      setShowDropZone]      = useState(false)
   const [displayMode, setDisplayMode] = useState<DisplayMode>(() =>
     (localStorage.getItem('vibecoder_display_mode') as DisplayMode) ?? 'default'
   )
@@ -102,6 +104,7 @@ export function TerminalPage() {
 
   const handleAttachFile = useCallback(async (file: File) => {
     setIsUploading(true)
+    setShowDropZone(false)
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -372,6 +375,17 @@ export function TerminalPage() {
 
           <Button variant="toolbar" onClick={() => setOpenMenuOpen(true)}>+</Button>
 
+          <Button
+            variant="toolbar"
+            onClick={() => setShowDropZone(true)}
+            title="Allega file"
+            disabled={isUploading}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ display: 'block' }}>
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </Button>
+
           <SettingsDropdown
             open={settingsOpen}
             onToggle={() => setSettingsOpen(v => !v)}
@@ -527,6 +541,15 @@ export function TerminalPage() {
         onClose={() => setOpenMenuOpen(false)}
         onOpenSession={handleOpenSession}
       />
+
+      {/* File drop zone (desktop) */}
+      {showDropZone && (
+        <FileDropZone
+          onFileSelect={file => { handleAttachFile(file) }}
+          onClose={() => setShowDropZone(false)}
+          isUploading={isUploading}
+        />
+      )}
 
       {/* Toast notifications (upload feedback, ecc.) */}
       <ToastContainer toasts={toasts} onDismiss={toast.dismiss} />
