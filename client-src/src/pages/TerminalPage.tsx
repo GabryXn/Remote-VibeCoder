@@ -118,7 +118,7 @@ export function TerminalPage() {
         reader.readAsDataURL(file)
       })
 
-      const repo = activeMeta?.repo ?? null
+      const repo = sessions.find(s => s.sessionId === activeSessionId)?.repo ?? null
       const resp = await fetch('/api/uploads', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,8 +150,7 @@ export function TerminalPage() {
     } finally {
       setIsUploading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMeta?.repo, showTextarea])
+  }, [sessions, activeSessionId, showTextarea])
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
