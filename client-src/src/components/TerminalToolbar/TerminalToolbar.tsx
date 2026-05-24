@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import type { TermInstance } from '@/terminal/constants'
 import styles from './TerminalToolbar.module.css'
@@ -9,11 +10,16 @@ interface TerminalToolbarProps {
   toggleSpaceHold: () => void
   stopSpaceHold:   () => void
   onKill:          () => void
+  onAttachFile:    (file: File) => void
+  isUploading?:    boolean
 }
 
 export function TerminalToolbar({
   sendToWs, activeInst, isHoldingSpace, toggleSpaceHold, stopSpaceHold, onKill,
+  onAttachFile, isUploading,
 }: TerminalToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   return (
     <div className={styles.toolbar}>
       {/* Scrollable section — all buttons except Kill */}
@@ -34,7 +40,7 @@ export function TerminalToolbar({
 
         <span className={styles.tbSep} />
 
-        {/* Group 3: scroll + mic */}
+        {/* Group 3: scroll + mic + attach */}
         <Button variant="toolbar" onClick={() => activeInst?.term.scrollToBottom()}>⬇</Button>
         <Button variant="toolbar"
           onClick={() => {
@@ -43,6 +49,39 @@ export function TerminalToolbar({
               ws.send(JSON.stringify({ type: 'resize', cols: activeInst.term.cols, rows: activeInst.term.rows }))
             }
           }}>↺</Button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          style={{ display: 'none' }}
+          onChange={e => {
+            const file = e.target.files?.[0]
+            if (file) { onAttachFile(file); e.target.value = '' }
+          }}
+        />
+
+        {/* Attach file button */}
+        <button
+          className={[styles.micBtn, isUploading ? styles.micBtnUploading : ''].filter(Boolean).join(' ')}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          title="Allega file"
+          aria-label="Allega file"
+        >
+          {isUploading ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="9" strokeDasharray="56" strokeDashoffset="28">
+                <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          )}
+        </button>
+
         <button
           className={[styles.micBtn, isHoldingSpace ? styles.micBtnRecording : ''].filter(Boolean).join(' ')}
           onTouchEnd={e => { e.preventDefault(); toggleSpaceHold() }}

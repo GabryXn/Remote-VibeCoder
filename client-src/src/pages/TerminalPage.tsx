@@ -4,6 +4,8 @@ import 'xterm/css/xterm.css'
 import {
   Button, StatusDot, SettingsDropdown, ResourceMonitor, MobileHeader, ResourceBar,
 } from '@/components'
+import { ToastContainer } from '@/components/Toast/Toast'
+import { useToast } from '@/hooks/useToast'
 import { useResourceMonitor }  from '@/hooks/useResourceMonitor'
 import { TerminalOpenMenu }     from '@/components/TerminalOpenMenu/TerminalOpenMenu'
 import { TerminalSidebar }      from '@/components/TerminalSidebar/TerminalSidebar'
@@ -91,6 +93,62 @@ export function TerminalPage() {
 
   // ── Space-hold mic ──────────────────────────────────────────────────────
   const { isHoldingSpace, toggleSpaceHold, stopSpaceHold } = useSpaceHold(sendToWs)
+
+  // ── Toast notifications ───────────────────────────────────────────────────
+  const { toasts, toast } = useToast()
+
+  // ── File upload ────────────────────────────────────────────────────────────
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleAttachFile = useCallback(async (file: File) => {
+    setIsUploading(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          // result format: "data:<mime>;base64,<content>"
+          const content = result.split(',')[1]
+          resolve(content)
+        }
+        reader.onerror = () => reject(new Error('Lettura file fallita'))
+        reader.readAsDataURL(file)
+      })
+
+      const repo = activeMeta?.repo ?? null
+      const resp = await fetch('/api/uploads', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: file.name, content: base64, repo }),
+      })
+
+      const data = await resp.json() as { ok?: boolean; filePath?: string; error?: string }
+
+      if (!resp.ok) {
+        toast.error('Upload fallito', { detail: data.error ?? 'Errore sconosciuto' })
+        return
+      }
+
+      const filePath = data.filePath ?? ''
+      toast.success(`File caricato`, {
+        detail:   filePath,
+        duration: 8000,
+        action:   {
+          label:   'Copia path',
+          onClick: () => navigator.clipboard.writeText(filePath).catch(() => {}),
+        },
+      })
+
+      if (showTextarea) {
+        setTextareaValue(prev => prev ? `${prev}\n${filePath}` : filePath)
+      }
+    } catch {
+      toast.error('Errore durante l\'upload del file')
+    } finally {
+      setIsUploading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMeta?.repo, showTextarea])
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -429,6 +487,8 @@ export function TerminalPage() {
           toggleSpaceHold={toggleSpaceHold}
           stopSpaceHold={stopSpaceHold}
           onKill={() => handleKillSession(activeSessionId)}
+          onAttachFile={handleAttachFile}
+          isUploading={isUploading}
         />
       )}
 
@@ -467,6 +527,9 @@ export function TerminalPage() {
         onClose={() => setOpenMenuOpen(false)}
         onOpenSession={handleOpenSession}
       />
+
+      {/* Toast notifications (upload feedback, ecc.) */}
+      <ToastContainer toasts={toasts} onDismiss={toast.dismiss} />
     </div>
   )
 }

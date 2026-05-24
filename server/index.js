@@ -17,6 +17,7 @@ const authRoutes     = require('./routes/auth');
 const reposRoutes    = require('./routes/repos');
 const sessionsRoutes = require('./routes/sessions');
 const aiRoutes       = require('./routes/ai');
+const uploadsRoutes  = require('./routes/uploads');
 const { handlePtyUpgrade } = require('./pty');
 const governor       = require('./resource-governor');
 const { getGpuUsage } = require('./lib/gpuMonitor');
@@ -77,7 +78,10 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('combined'));
 }
 
-app.use(express.json({ limit: '100kb' })); // Cap JSON body size
+// Uploads use a higher limit — must be registered BEFORE the global parser
+// so body-parser skips re-parsing (it checks req._body) when the global runs
+app.use('/api/uploads', express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '100kb' })); // Cap JSON body size for all other routes
 app.use(cookieParser());
 
 // Trust Cloudflare / nginx proxy
@@ -149,6 +153,7 @@ app.use('/api/auth',     authRoutes);
 app.use('/api/repos',    reposRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/ai',       aiRoutes);
+app.use('/api/uploads',  uploadsRoutes);
 
 // ─── /metrics/* — proxy to nexus-metrics standalone service ──────────────────
 const NEXUS_METRICS_ORIGIN = 'http://127.0.0.1:3001';
