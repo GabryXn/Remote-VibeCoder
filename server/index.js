@@ -21,6 +21,9 @@ const { handlePtyUpgrade } = require('./pty');
 const governor       = require('./resource-governor');
 const { getGpuUsage } = require('./lib/gpuMonitor');
 const systemMetrics   = require('./lib/systemMetrics');
+const { setSessionMeta }          = require('./lib/sessionStore');
+const { invalidateSessionsCache } = require('./lib/tmuxClient');
+const sessionRestore              = require('./lib/sessionRestore');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -430,6 +433,10 @@ server.listen(PORT, BIND_HOST, () => {
   console.log(`[server] Remote VibeCoder listening on http://${BIND_HOST}:${PORT}`);
   console.log(`[server] Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`[server] V8 heap limit: ${Math.round(require('v8').getHeapStatistics().heap_size_limit / 1048576)}MB`);
+
+  // Restore tmux sessions from disk manifest (handles both service restart and server reboot)
+  sessionRestore.restoreSessions(setSessionMeta, invalidateSessionsCache)
+    .catch(err => console.error('[server] Session restore failed:', err.message));
 });
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────

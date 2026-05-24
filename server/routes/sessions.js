@@ -13,6 +13,7 @@ const {
 } = require('../lib/tmuxClient');
 const { getSessionMeta, setSessionMeta, deleteSessionMeta } = require('../lib/sessionStore');
 const { listPtsProcesses, killSystemProcess } = require('../lib/systemTerminals');
+const sessionRestore = require('../lib/sessionRestore');
 
 const router    = express.Router();
 const REPOS_DIR = path.join(os.homedir(), 'repos');
@@ -89,6 +90,7 @@ router.delete('/system/tmux/:name', async (req, res) => {
   try {
     await runTmux(['kill-session', '-t', name]);
     deleteSessionMeta(name);
+    sessionRestore.removeSession(name);
     invalidateSessionsCache();
     res.json({ ok: true });
   } catch (err) {
@@ -136,8 +138,11 @@ router.post('/_free', async (req, res) => {
   const safeShell = ALLOWED_SHELLS.has(rawShell) ? rawShell : '/bin/bash';
 
   try {
+    const now = Date.now();
     await runTmux(['new-session', '-d', '-s', tmuxName, '-c', os.homedir(), '-x', '220', '-y', '50', safeShell]);
-    setSessionMeta(tmuxName, { repo: null, label: label || `shell #${id}`, mode: 'shell', created: Date.now() });
+    const meta = { repo: null, label: label || `shell #${id}`, mode: 'shell', created: now };
+    setSessionMeta(tmuxName, meta);
+    sessionRestore.saveSession(tmuxName, { ...meta, cwd: os.homedir() });
     invalidateSessionsCache();
     res.json({ ok: true, sessionId: tmuxName, created: true, mode: 'shell' });
   } catch (err) {
@@ -179,8 +184,11 @@ router.post('/', async (req, res) => {
   const startCmd   = mode === 'shell' ? safeShell : 'claude';
 
   try {
+    const now = Date.now();
     await runTmux(['new-session', '-d', '-s', tmuxName, '-c', cwd, '-x', '220', '-y', '50', startCmd]);
-    setSessionMeta(tmuxName, { repo, label: startLabel, mode, created: Date.now() });
+    const meta = { repo, label: startLabel, mode, created: now };
+    setSessionMeta(tmuxName, meta);
+    sessionRestore.saveSession(tmuxName, { ...meta, cwd });
     invalidateSessionsCache();
     res.json({ ok: true, sessionId: tmuxName, created: true, mode });
   } catch (err) {
@@ -205,7 +213,9 @@ router.patch('/:sessionId', async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  setSessionMeta(sessionId, { ...getSessionMeta(sessionId), label: safeLabel });
+  const updated = { ...getSessionMeta(sessionId), label: safeLabel };
+  setSessionMeta(sessionId, updated);
+  sessionRestore.saveSession(sessionId, updated);
   res.json({ ok: true });
 });
 
@@ -225,6 +235,7 @@ router.delete('/:sessionId', async (req, res) => {
   try {
     await runTmux(['kill-session', '-t', tmuxName]);
     deleteSessionMeta(tmuxName);
+    sessionRestore.removeSession(tmuxName);
     invalidateSessionsCache();
     res.json({ ok: true });
   } catch (err) {
@@ -254,8 +265,11 @@ router.post('/:repo', async (req, res) => {
       return res.json({ ok: true, sessionId: tmuxName, sessionName: tmuxName, created: false, mode: 'unknown' });
     } catch (_) { /* create it */ }
 
+    const now  = Date.now();
     await runTmux(['new-session', '-d', '-s', tmuxName, '-c', repoPath, '-x', '220', '-y', '50', startCmd]);
-    setSessionMeta(tmuxName, { repo, label: `${repo}`, mode, created: Date.now() });
+    const meta = { repo, label: `${repo}`, mode, created: now };
+    setSessionMeta(tmuxName, meta);
+    sessionRestore.saveSession(tmuxName, { ...meta, cwd: repoPath });
     invalidateSessionsCache();
     res.json({ ok: true, sessionId: tmuxName, sessionName: tmuxName, created: true, mode });
   } catch (err) {
