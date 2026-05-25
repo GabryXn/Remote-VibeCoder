@@ -24,44 +24,25 @@ export function TerminalToolbar({
     <div className={styles.toolbar}>
       {/* Scrollable section — all buttons except Kill */}
       <div className={styles.toolbarScrollable}>
-        {/* Group 1: control keys */}
-        <Button variant="toolbar" className={styles.tbEnter} onClick={() => sendToWs('\r')}>↵</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\x03')}>^C</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\t')}>Tab</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\x1b')}>Esc</Button>
-
-        <span className={styles.tbSep} />
-
-        {/* Group 2: arrow keys */}
-        <Button variant="toolbar" onClick={() => sendToWs('\x1b[A')}>↑</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\x1b[B')}>↓</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\x1b[D')}>←</Button>
-        <Button variant="toolbar" onClick={() => sendToWs('\x1b[C')}>→</Button>
-
-        <span className={styles.tbSep} />
-
-        {/* Group 3: scroll + mic + attach */}
-        <Button variant="toolbar" onClick={() => activeInst?.term.scrollToBottom()}>⬇</Button>
-        <Button variant="toolbar"
-          onClick={() => {
-            const ws = activeInst?.ws
-            if (ws?.readyState === WebSocket.OPEN && activeInst) {
-              ws.send(JSON.stringify({ type: 'resize', cols: activeInst.term.cols, rows: activeInst.term.rows }))
-            }
-          }}>↺</Button>
-
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           style={{ display: 'none' }}
           onChange={e => {
-            const file = e.target.files?.[0]
-            if (file) { onAttachFile(file); e.target.value = '' }
+            const files = e.target.files
+            if (files && files.length > 0) {
+              Array.from(files).forEach(f => onAttachFile(f))
+              e.target.value = ''
+            }
           }}
         />
 
-        {/* Attach file button */}
+        {/* Group 1: control keys + attach */}
+        <Button variant="toolbar" className={styles.tbEnter} onClick={() => sendToWs('\r')}>↵</Button>
+
+        {/* Attach file button — seconda posizione, sempre visibile */}
         <button
           className={[styles.micBtn, isUploading ? styles.micBtnUploading : ''].filter(Boolean).join(' ')}
           onClick={() => fileInputRef.current?.click()}
@@ -81,6 +62,30 @@ export function TerminalToolbar({
             </svg>
           )}
         </button>
+
+        <Button variant="toolbar" onClick={() => sendToWs('\x03')}>^C</Button>
+        <Button variant="toolbar" onClick={() => sendToWs('\t')}>Tab</Button>
+        <Button variant="toolbar" onClick={() => sendToWs('\x1b')}>Esc</Button>
+
+        <span className={styles.tbSep} />
+
+        {/* Group 2: arrow keys */}
+        <Button variant="toolbar" onClick={() => sendToWs('\x1b[A')}>↑</Button>
+        <Button variant="toolbar" onClick={() => sendToWs('\x1b[B')}>↓</Button>
+        <Button variant="toolbar" onClick={() => sendToWs('\x1b[D')}>←</Button>
+        <Button variant="toolbar" onClick={() => sendToWs('\x1b[C')}>→</Button>
+
+        <span className={styles.tbSep} />
+
+        {/* Group 3: scroll + mic */}
+        <Button variant="toolbar" onClick={() => activeInst?.term.scrollToBottom()}>⬇</Button>
+        <Button variant="toolbar"
+          onClick={() => {
+            const ws = activeInst?.ws
+            if (ws?.readyState === WebSocket.OPEN && activeInst) {
+              ws.send(JSON.stringify({ type: 'resize', cols: activeInst.term.cols, rows: activeInst.term.rows }))
+            }
+          }}>↺</Button>
 
         <button
           className={[styles.micBtn, isHoldingSpace ? styles.micBtnRecording : ''].filter(Boolean).join(' ')}

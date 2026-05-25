@@ -153,22 +153,18 @@ jobs:
               source "$NVM_DIR/nvm.sh"
             fi
 
-            # Fallback for common nvm paths if above didn't work or if installed differently
-            export PATH="$HOME/.nvm/versions/node/$(node -v 2>/dev/null || echo 'default')/bin:$HOME/.npm-global/bin:$PATH"
+            # Fallback PATH per installazioni node fuori da nvm (npm-global, nvm default)
+            NVM_NODE_BIN=$(ls -d "$HOME/.nvm/versions/node"/*/bin 2>/dev/null | tail -1)
+            export PATH="${NVM_NODE_BIN:-/usr/local/bin}:$HOME/.npm-global/bin:$PATH"
 
             echo "── Environment Diagnostics ──"
             echo "APP_DIR: ${APP_DIR:-<not set>}"
             echo "REPO_SLUG: ${REPO_SLUG:-<not set>}"
             echo "SERVICE_CHANGED: ${SERVICE_CHANGED:-<not set>}"
+            echo "node: $(node --version 2>/dev/null || echo 'NOT FOUND')"
             echo "PATH: $PATH"
             whoami
             pwd
-
-            echo "── Checking for pnpm ──"
-            if ! command -v pnpm &>/dev/null; then
-              echo "pnpm not found, installing..."
-              npm install -g pnpm
-            fi
 
             echo "── Pulling latest code ──"
             if [ ! -d ~/$APP_DIR/.git ]; then
@@ -179,6 +175,17 @@ jobs:
             git -C ~/$APP_DIR fetch "https://x-access-token:${GH_PAT}@github.com/${REPO_SLUG}.git" master
             git -C ~/$APP_DIR reset --hard FETCH_HEAD
             echo "  $PREV_HEAD → $(git -C ~/$APP_DIR rev-parse HEAD)"
+
+            echo "── Ensuring correct pnpm version ──"
+            # Legge la versione dal campo packageManager nel package.json appena scaricato
+            REQUIRED_PNPM=$(node -e "const p=require('$HOME/$APP_DIR/server/package.json').packageManager||'';console.log(p.split('@')[1]||'latest')" 2>/dev/null || echo "latest")
+            CURRENT_PNPM=$(pnpm --version 2>/dev/null || echo "none")
+            echo "  richiesta: pnpm@${REQUIRED_PNPM}  installata: ${CURRENT_PNPM}"
+            if [ "$CURRENT_PNPM" != "$REQUIRED_PNPM" ]; then
+              echo "  Installazione pnpm@${REQUIRED_PNPM}…"
+              npm install -g "pnpm@${REQUIRED_PNPM}"
+            fi
+            echo "  pnpm $(pnpm --version)"
 
             echo "── Server-side JS syntax check (pre-deploy gate) ──"
             find ~/$APP_DIR/server -name '*.js' -not -path '*/node_modules/*' -type f | while read f; do
