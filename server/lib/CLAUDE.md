@@ -33,13 +33,20 @@ In-memory `Map` of `{ repo, label, mode, created }` keyed by tmux session name. 
 ### `githubClient.js`
 Octokit factory + GitHub repo list cache (2-min TTL). Call `invalidateReposCache()` after any operation that changes the repo list (clone, delete).
 
-### `gitOps.js`
-All `simple-git` operations. PAT is never stored in `.git/config` — always passed via `withGitCredentials` (GIT_ASKPASS pattern, see `gitCredentials.js`).
+### `gitEngineClient.js`
+Wrapper Node→Python per il submodule `gitengine/` (repo condivisa con `git-sync-kde`). Ogni funzione spawna `python3 -m gitengine <comando>` e riceve JSON su stdout. Sostituisce `gitOps.js` come fonte delle operazioni git.
 
-**Two-instance pattern in `getSyncStatus` and `forcePull`:** One `simpleGit` instance wraps the credential helper for network ops (fetch), a second bare instance runs local ops (status, reset, clean). This avoids passing credentials to non-network commands.
+**Pattern credenziali:** `_makeCredentialEnv(token)` crea un `tmpDir` 0o700 con `askpass.sh` e `token`, imposta `GIT_ASKPASS` nell'env del subprocess Python, poi `_cleanupCredentialEnv()` elimina tutto. Il PAT non appare mai negli argomenti né in `.git/config`. Le operazioni locali (`status`) non ricevono credenziali — solo fetch/pull/push/clone usano `_withCred()`.
+
+**`commitRepo`:** Passa `--author-name` / `--author-email` come flag CLI a gitengine, che li converte in `GIT_AUTHOR_NAME` / `GIT_COMMITTER_NAME` per il commit Python.
+
+**API pubblica:** `getGitStatus`, `getSyncStatus`, `cloneRepo`, `pullRepo`, `pullRepoRebase`, `forcePull`, `commitRepo`, `pushRepo`, `stripEmbeddedCredentials` (no-op), `ensureReposDir`.
+
+### `gitOps.js`
+**Legacy — non più importato da `repos.js`.** Conservato per riferimento storico. Tutte le operazioni git sono migrate in `gitEngineClient.js`.
 
 ### `gitCredentials.js`
-Creates a temp script (0o600) that echoes the PAT, sets `GIT_ASKPASS` to that path, runs the callback, then deletes the file. The PAT never appears in `.git/config` or process args.
+Creates a temp script (0o600) that echoes the PAT, sets `GIT_ASKPASS` to that path, runs the callback, then deletes the file. Il pattern è replicato inline in `gitEngineClient.js` per passare l'env al subprocess Python. Il PAT non appare mai in `.git/config` né negli argomenti del processo.
 
 ### `repoValidation.js`
 Pure input validation — no side effects. `validateRepoName`, `validateRepoPath`, `validateNestedPath`, `validateCommitParams`. Always run these before any filesystem or git operation.

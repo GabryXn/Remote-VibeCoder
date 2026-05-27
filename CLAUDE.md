@@ -76,7 +76,8 @@ Claude Code CLI (or shell)
 - `server/routes/auth.js` — PBKDF2-SHA512 (100k iterations) session auth; `crypto.timingSafeEqual()` to prevent timing attacks; 500ms delay on failure
 - `server/routes/repos.js` — Thin router: validates input, calls lib modules, returns HTTP responses. ~130 lines.
 - `server/lib/githubClient.js` — Octokit factory + GitHub repo list cache (2-min TTL). Exports: `getOctokit`, `getGithubUser`, `listGithubRepos`, `invalidateReposCache`.
-- `server/lib/gitOps.js` — All `simple-git` operations (clone, pull, force-pull, push, commit, status, sync-status). No Express imports. PAT via `withGitCredentials`.
+- `server/lib/gitEngineClient.js` — Wrapper Node→Python per la CLI di `gitengine` (submodule condiviso). Ogni funzione spawna `python3 -m gitengine <cmd>` con `GIT_ASKPASS` temporaneo per le operazioni autenticate. Sostituisce `gitOps.js`. Stessa API pubblica: `getGitStatus`, `getSyncStatus`, `cloneRepo`, `pullRepo`, `forcePull`, `commitRepo`, `pushRepo`.
+- `server/lib/gitOps.js` — **Legacy, non più usato da `repos.js`**. Conservato per riferimento. Tutte le operazioni git sono ora in `gitEngineClient.js`.
 - `server/lib/repoValidation.js` — Pure input validation functions: `validateRepoName`, `validateRepoPath`, `validateNestedPath`, `validateCommitParams`. No side effects.
 - `server/routes/sessions.js` — tmux session lifecycle (CRUD); shell command whitelist for `?shell=true`; subprocess caching (3s TTL), batched CWD lookups (max 5 concurrent), periodic stale metadata cleanup
 
@@ -88,17 +89,15 @@ Claude Code CLI (or shell)
 
 **Current structure (Approach B):** Thin router + `lib/` modules. Each module has one responsibility. Appropriate for a single-user app with ~10 endpoints.
 
-**Future Migration Path (Approach C):** If GitHub-related endpoints grow beyond ~15, or if the team needs to mock GitHub operations in isolation, migrate to a dedicated `server/github/` directory:
+### gitengine — Submodule condiviso
 
-```
-server/github/
-  index.js       (barrel export)
-  client.js      (renamed from lib/githubClient.js)
-  ops.js         (renamed from lib/gitOps.js)
-  validation.js  (renamed from lib/repoValidation.js)
-```
+**`gitengine/`** — Git submodule puntato a `github.com/GabryXn/gitengine`. Contiene tutta la logica Git in Python, condivisa con `git-sync-kde`. Remote VibeCoder la usa tramite `gitEngineClient.js`, che chiama `python3 -m gitengine <comando>` e riceve JSON su stdout.
 
-Migration is a rename + barrel creation — no logic changes required.
+Comandi CLI disponibili: `status`, `pull`, `push`, `push-force`, `fetch`, `reset-hard`, `force-pull`, `commit`, `commit-and-push`, `scan`, `clone`.
+
+Per aggiornare il submodule: `git submodule update --remote gitengine`
+
+**Pattern credenziali:** `gitEngineClient.js` crea un file `askpass.sh` temporaneo (0o700) con il PAT, imposta `GIT_ASKPASS` nell'env del processo Python, ed elimina il file dopo l'operazione. Il PAT non appare mai negli argomenti del processo né in `.git/config`.
 
 ## API Endpoints
 
