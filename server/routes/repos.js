@@ -5,13 +5,12 @@ const fs      = require('fs');
 const fsp     = require('fs/promises');
 const path    = require('path');
 const os      = require('os');
-const simpleGit = require('simple-git');
 const config  = require('../config');
 
 const { getOctokit, getGithubUser, listGithubRepos, invalidateReposCache } = require('../lib/githubClient');
 const { ensureReposDir, getGitStatus, getSyncStatus, cloneRepo, pullRepo,
         pullRepoRebase, forcePull, commitRepo, stripEmbeddedCredentials,
-        pushRepo }                                                          = require('../lib/gitOps');
+        pushRepo }                                                          = require('../lib/gitEngineClient');
 const { getRepoDiff, generateCommitMessage }                               = require('../lib/aiGenerate');
 const { validateRepoName, validateRepoPath, validateNestedPath,
         validateCommitParams }                                               = require('../lib/repoValidation');
@@ -267,8 +266,7 @@ router.post('/:name/commit', async (req, res) => {
       try {
         const token  = config.get().githubPat || process.env.GITHUB_PAT;
         await stripEmbeddedCredentials(resolved, req.params.name);
-        const branch = (await simpleGit(resolved).status()).current;
-        await pushRepo(resolved, token, branch);
+        await pushRepo(resolved, token);
         return res.json({ ok: true, commit, pushed: true });
       } catch (pushErr) {
         console.error('[repos] push error (commit succeeded):', pushErr);
@@ -299,14 +297,14 @@ router.post('/:name/push', async (req, res) => {
     const resolved = pathCheck.resolved;
 
     await stripEmbeddedCredentials(resolved, req.params.name);
-    const status = await simpleGit(resolved).status();
+    const status = await getGitStatus(resolved);
 
     if (status.ahead === 0) {
       return res.json({ ok: true, message: 'Nothing to push' });
     }
 
-    await pushRepo(resolved, token, status.current);
-    res.json({ ok: true, branch: status.current, pushed: status.ahead });
+    await pushRepo(resolved, token);
+    res.json({ ok: true, branch: status.branch, pushed: status.ahead });
   } catch (err) {
     console.error('[repos] push error:', err);
     res.status(500).json({ error: err.message });
@@ -360,8 +358,7 @@ router.post('/sync-all', async (req, res) => {
         report.action = 'pulled';
       } else if (!status.localChanges && status.ahead > 0) {
         await stripEmbeddedCredentials(resolved, name);
-        const st = await simpleGit(resolved).status();
-        await pushRepo(resolved, token, st.current);
+        await pushRepo(resolved, token);
         report.action = 'pushed';
       } else if (status.localChanges) {
         let title = 'Auto-sync update';
@@ -398,8 +395,7 @@ router.post('/sync-all', async (req, res) => {
         }
 
         await stripEmbeddedCredentials(resolved, name);
-        const st = await simpleGit(resolved).status();
-        await pushRepo(resolved, token, st.current);
+        await pushRepo(resolved, token);
         report.action = 'committed+pushed';
       }
     } catch (err) {

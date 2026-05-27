@@ -1,0 +1,3 @@
+[submodule "gitengine"]
+	path = gitengine
+	url = https://github.com/GabryXn/gitengine.git
