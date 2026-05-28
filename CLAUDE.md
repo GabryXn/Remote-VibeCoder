@@ -76,7 +76,7 @@ Claude Code CLI (or shell)
 - `server/routes/auth.js` — PBKDF2-SHA512 (100k iterations) session auth; `crypto.timingSafeEqual()` to prevent timing attacks; 500ms delay on failure
 - `server/routes/repos.js` — Thin router: validates input, calls lib modules, returns HTTP responses. ~130 lines.
 - `server/lib/githubClient.js` — Octokit factory + GitHub repo list cache (2-min TTL). Exports: `getOctokit`, `getGithubUser`, `listGithubRepos`, `invalidateReposCache`.
-- `server/lib/gitEngineClient.js` — Wrapper Node→Python per la CLI di `gitengine` (submodule condiviso). Ogni funzione spawna `python3 -m gitengine <cmd>` con `GIT_ASKPASS` temporaneo per le operazioni autenticate. Sostituisce `gitOps.js`. Stessa API pubblica: `getGitStatus`, `getSyncStatus`, `cloneRepo`, `pullRepo`, `forcePull`, `commitRepo`, `pushRepo`.
+- `server/lib/gitEngineClient.js` — Wrapper Node→Python per la CLI di `gitengine` (submodule condiviso). Ogni funzione spawna `python3 -m gitengine <cmd>` con `GIT_ASKPASS` temporaneo per le operazioni autenticate. Sostituisce `gitOps.js`. API: `getGitStatus`, `getSyncStatus`, `cloneRepo`, `pullRepo`, `forcePull`, `commitRepo`, `pushRepo`, **`pushRepoSafe`**, **`syncSubmodules`**, **`getSubmodulesStatus`** (vedi sezione "gitengine — Submodule condiviso" più sotto).
 - `server/lib/gitOps.js` — **Legacy, non più usato da `repos.js`**. Conservato per riferimento. Tutte le operazioni git sono ora in `gitEngineClient.js`.
 - `server/lib/repoValidation.js` — Pure input validation functions: `validateRepoName`, `validateRepoPath`, `validateNestedPath`, `validateCommitParams`. No side effects.
 - `server/routes/sessions.js` — tmux session lifecycle (CRUD); shell command whitelist for `?shell=true`; subprocess caching (3s TTL), batched CWD lookups (max 5 concurrent), periodic stale metadata cleanup
@@ -93,9 +93,17 @@ Claude Code CLI (or shell)
 
 **`gitengine/`** — Git submodule puntato a `github.com/GabryXn/gitengine`. Contiene tutta la logica Git in Python, condivisa con `git-sync-kde`. Remote VibeCoder la usa tramite `gitEngineClient.js`, che chiama `python3 -m gitengine <comando>` e riceve JSON su stdout.
 
-Comandi CLI disponibili: `status`, `pull`, `push`, `push-force`, `fetch`, `reset-hard`, `force-pull`, `commit`, `commit-and-push`, `scan`, `clone`.
+Comandi CLI disponibili: `status`, `pull`, `push`, `push-force`, `fetch`, `reset-hard`, `force-pull`, `commit`, `commit-and-push`, `scan`, `clone`, `submodule-status`, `submodule-update`, `submodule-sync`.
 
 Per aggiornare il submodule: `git submodule update --remote gitengine`
+
+**API submodule-safe in `gitEngineClient.js`** (per garantire deploy consistenti):
+
+- `syncSubmodules(repoPath, token, {path, commitTitle, commitBody})` — sincronizza tutti i submodule del parent applicando la macchina a stati (BEHIND→pull, AHEAD→push, DIRTY→commit+push, DIVERGED→errore). Stage automatico del pointer bump. Timeout 120s.
+- `getSubmodulesStatus(repoPath)` — read-only: `state`, `ahead`/`behind`, `pointer_drift`, `dirty` per ogni submodule. Utile per health-check pre-deploy.
+- `pushRepoSafe(repoPath, token, {commitTitle, commitBody})` — flusso end-to-end: prima `syncSubmodules`, poi commit del pointer bump se il parent risulta dirty, infine push. **Da usare al posto di `pushRepo`** in tutti i flussi che innescano workflow di deploy, così master e submodule sono sempre allineati e i deploy ricevono codice consistente.
+
+**Perché:** il deploy via GitHub Actions parte dal commit pushato su master. Se il parent referenzia un commit del submodule non disponibile sul remote del submodule (caso DIVERGED o pointer drift verso un commit locale non pushato), il `git submodule update` lato CI fallisce → deploy rotto. `pushRepoSafe` previene questa classe di errori.
 
 **Pattern credenziali:** `gitEngineClient.js` crea un file `askpass.sh` temporaneo (0o700) con il PAT, imposta `GIT_ASKPASS` nell'env del processo Python, ed elimina il file dopo l'operazione. Il PAT non appare mai negli argomenti del processo né in `.git/config`.
 
