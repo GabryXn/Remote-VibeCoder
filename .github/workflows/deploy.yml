@@ -176,6 +176,10 @@ jobs:
             git -C ~/$APP_DIR reset --hard FETCH_HEAD
             echo "  $PREV_HEAD → $(git -C ~/$APP_DIR rev-parse HEAD)"
 
+            echo "── Updating git submodules ──"
+            git -C ~/$APP_DIR submodule update --init --recursive
+            echo "✓ Submodules updated"
+
             echo "── Ensuring correct pnpm version ──"
             # Legge la versione dal campo packageManager nel package.json appena scaricato
             REQUIRED_PNPM=$(node -e "const p=require('$HOME/$APP_DIR/server/package.json').packageManager||'';console.log(p.split('@')[1]||'latest')" 2>/dev/null || echo "latest")
@@ -192,6 +196,18 @@ jobs:
               node --check "$f" || { echo "✗ Syntax error in $f — aborting deploy"; exit 1; }
             done
             echo "✓ Server syntax OK"
+
+            echo "── Installing Python dependencies (gitengine) ──"
+            if command -v uv >/dev/null 2>&1; then
+              cd ~/$APP_DIR && uv sync --no-dev
+              echo "✓ Python deps installed"
+            else
+              echo "⚠ uv not found — installing…"
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.local/bin:$PATH"
+              cd ~/$APP_DIR && uv sync --no-dev
+              echo "✓ Python deps installed"
+            fi
 
             echo "── Installing server dependencies ──"
             cd ~/$APP_DIR/server && pnpm install --frozen-lockfile --prod

@@ -1,0 +1,8 @@
+[project]
+name = "remote-vibecoder"
+version = "0.1.0"
+description = "Python dependencies for Remote VibeCoder (gitengine submodule)"
+requires-python = ">=3.11"
+dependencies = [
+    "gitpython>=3.1.0",
+]

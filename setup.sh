@@ -311,6 +311,17 @@ else
   fi
 fi
 
+info "Installing uv (Python package manager)…"
+if ! command -v uv &>/dev/null; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+success "uv $(uv --version)"
+
+info "Installing Python dependencies (gitengine)…"
+cd "$APP_DIR" && uv sync --no-dev
+success "Python dependencies installed"
+
 info "Installing Node.js dependencies (this may take a few minutes)…"
 info "Installing server dependencies…"
 cd "$APP_DIR/server" && pnpm install

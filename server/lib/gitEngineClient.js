@@ -32,7 +32,7 @@ const GITENGINE_CWD = PROJECT_ROOT;
 function runGitEngine(args, extraEnv = {}, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const env  = { ...process.env, ...extraEnv };
-    const proc = spawn('python3', ['-m', 'gitengine', ...args], {
+    const proc = spawn('uv', ['run', '--', 'python3', '-m', 'gitengine', ...args], {
       cwd: GITENGINE_CWD,
       env,
     });
